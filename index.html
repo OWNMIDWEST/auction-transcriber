@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AuctionScribe</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1f1f1f;
+    --border: #2a2a2a;
+    --accent: #e8c44a;
+    --accent2: #c9a82c;
+    --text: #f0ece0;
+    --muted: #7a7570;
+    --danger: #e05555;
+    --success: #4caf7d;
+    --deepgram: #13ef93;
+    --assemblyai: #7c3aed;
+    --uncertain: #e8844a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem; }
+
+  header { display: flex; align-items: flex-end; gap: 1rem; margin-bottom: 1.75rem; border-bottom: 1px solid var(--border); padding-bottom: 1.25rem; flex-wrap: wrap; }
+  .logo { font-family: 'Bebas Neue', sans-serif; font-size: 2.8rem; letter-spacing: 0.05em; color: var(--accent); line-height: 1; }
+  .logo span { color: var(--text); }
+  .subtitle { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.15em; text-transform: uppercase; padding-bottom: 0.2rem; }
+  .nav-link { margin-left: auto; padding: 0.4rem 0.9rem; border-radius: 8px; border: 1px solid var(--border); color: var(--muted); font-size: 0.78rem; text-decoration: none; transition: all 0.15s; }
+  .nav-link:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Tabs */
+  .page-tabs { display: flex; gap: 2px; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+  .page-tab { padding: 0.6rem 1.2rem; font-size: 0.82rem; font-weight: 500; color: var(--muted); cursor: pointer; border: none; background: transparent; font-family: 'DM Sans', sans-serif; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.15s; }
+  .page-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .page-tab:hover:not(.active) { color: var(--text); }
+  .tab-page { display: none; }
+  .tab-page.active { display: block; }
+
+  /* Layout */
+  .layout { display: grid; grid-template-columns: 295px 1fr; gap: 1.25rem; align-items: start; }
+
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.1rem; margin-bottom: 1rem; }
+  .panel:last-child { margin-bottom: 0; }
+  .panel-title { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.85rem; display: flex; align-items: center; gap: 0.5rem; }
+  .panel-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  label { display: block; font-size: 0.68rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.3rem; }
+  input[type="text"], input[type="password"], input[type="date"] { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.76rem; padding: 0.5rem 0.7rem; outline: none; transition: border-color 0.15s; margin-bottom: 0.8rem; }
+  input:focus { border-color: var(--accent); }
+
+  .service-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 1rem; }
+  .service-tab { padding: 0.55rem; border-radius: 8px; border: 1px solid var(--border); background: transparent; cursor: pointer; text-align: center; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+  .service-tab .svc-name { font-size: 0.82rem; font-weight: 600; color: var(--muted); display: block; }
+  .service-tab .svc-tag { font-size: 0.62rem; color: var(--muted); margin-top: 1px; display: block; }
+  .service-tab.active-dg { border-color: var(--deepgram); background: rgba(19,239,147,0.05); }
+  .service-tab.active-dg .svc-name { color: var(--deepgram); }
+  .service-tab.active-ai { border-color: var(--assemblyai); background: rgba(124,58,237,0.07); }
+  .service-tab.active-ai .svc-name { color: #a78bfa; }
+
+  .mode-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 0.8rem; }
+  .mode-btn { padding: 0.5rem; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 0.78rem; cursor: pointer; transition: all 0.15s; }
+  .mode-btn.active { border-color: var(--accent); background: rgba(232,196,74,0.07); color: var(--accent); }
+
+  .drop-zone { border: 1.5px dashed var(--border); border-radius: 10px; padding: 1.25rem; text-align: center; cursor: pointer; transition: all 0.15s; margin-bottom: 0.8rem; position: relative; }
+  .drop-zone:hover, .drop-zone.dragover { border-color: var(--accent); background: rgba(232,196,74,0.03); }
+  .drop-zone input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; margin: 0; padding: 0; border: none; }
+  .drop-icon { font-size: 1.4rem; margin-bottom: 0.3rem; }
+  .drop-text { font-size: 0.74rem; color: var(--muted); line-height: 1.5; }
+  .drop-filename { font-size: 0.74rem; color: var(--accent); margin-top: 0.25rem; font-family: 'DM Mono', monospace; }
+
+  .btn { width: 100%; padding: 0.68rem; border-radius: 8px; border: none; font-family: 'DM Sans', sans-serif; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-bottom: 0.4rem; display: flex; align-items: center; justify-content: center; gap: 7px; }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: #0d0d0d; }
+  .btn-primary:hover:not(:disabled) { background: var(--accent2); }
+  .btn-danger { background: rgba(224,85,85,0.12); color: var(--danger); border: 1px solid var(--danger); }
+  .btn-danger:hover:not(:disabled) { background: rgba(224,85,85,0.22); }
+  .btn-success { background: rgba(76,175,125,0.12); color: var(--success); border: 1px solid var(--success); }
+  .btn-success:hover:not(:disabled) { background: rgba(76,175,125,0.22); }
+  .btn-ghost { border: 1px solid var(--border); color: var(--muted); background: transparent; font-size: 0.78rem; }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--muted); color: var(--text); }
+
+  .status-bar { display: flex; align-items: center; gap: 8px; padding: 0.5rem 0.8rem; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); font-size: 0.75rem; margin-bottom: 0.75rem; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .status-dot.live { background: var(--danger); animation: pulse 1s infinite; }
+  .status-dot.processing { background: var(--accent); animation: pulse 0.7s infinite; }
+  .status-dot.done { background: var(--success); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  .alert { padding: 0.55rem 0.8rem; border-radius: 8px; font-size: 0.75rem; margin-bottom: 0.7rem; display: none; line-height: 1.5; }
+  .alert.show { display: block; }
+  .alert-err { background: rgba(224,85,85,0.09); border: 1px solid rgba(224,85,85,0.3); color: #f08080; }
+  .divider { height: 1px; background: var(--border); margin: 0.7rem 0; }
+
+  .right-panel { display: flex; flex-direction: column; gap: 1rem; }
+
+  .panel-header { padding: 0.8rem 1.1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--surface); border-radius: 12px 12px 0 0; }
+  .panel-header-title { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+  .badge { font-size: 0.62rem; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+  .badge-live { background: rgba(224,85,85,0.15); color: var(--danger); border: 1px solid rgba(224,85,85,0.3); }
+  .badge-rec { background: rgba(232,196,74,0.1); color: var(--accent); border: 1px solid rgba(232,196,74,0.25); }
+
+  .transcript-box { background: var(--surface); border: 1px solid var(--border); border-radius: 0 0 12px 12px; min-height: 180px; max-height: 250px; overflow-y: auto; padding: 0.9rem; font-family: 'DM Mono', monospace; font-size: 0.74rem; line-height: 1.8; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .transcript-box::-webkit-scrollbar { width: 4px; }
+  .transcript-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .t-line { padding: 0.12rem 0; border-bottom: 1px solid rgba(42,42,42,0.4); display: grid; grid-template-columns: 70px 95px 1fr; gap: 0.5rem; align-items: baseline; }
+  .t-line:last-child { border-bottom: none; }
+  .t-ts { color: var(--accent); font-size: 0.67rem; }
+  .t-spk { color: var(--deepgram); font-size: 0.67rem; }
+  .placeholder { color: var(--muted); text-align: center; padding: 2rem 1rem; font-size: 0.82rem; line-height: 2; }
+
+  /* Extraction spinner */
+  .extract-bar { background: rgba(232,196,74,0.06); border: 1px solid rgba(232,196,74,0.2); border-radius: 12px; padding: 0.9rem 1.1rem; display: none; align-items: center; gap: 12px; margin-bottom: 1rem; }
+  .extract-bar.show { display: flex; }
+  .extract-spinner { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .extract-text { font-size: 0.8rem; color: var(--muted); }
+  .extract-text strong { color: var(--accent); }
+
+  /* Sales table */
+  .sales-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .sales-header { padding: 0.8rem 1.1rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
+  .sales-count { font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+  .sales-count strong { color: var(--text); font-size: 0.9rem; }
+  .sales-actions { display: flex; gap: 8px; }
+  .action-btn { padding: 0.35rem 0.85rem; border-radius: 6px; font-family: 'DM Sans', sans-serif; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 5px; border: 1px solid; }
+  .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .action-btn-add { background: rgba(76,175,125,0.1); color: var(--success); border-color: var(--success); }
+  .action-btn-add:hover:not(:disabled) { background: rgba(76,175,125,0.2); }
+  .action-btn-export { background: rgba(232,196,74,0.1); color: var(--accent); border-color: rgba(232,196,74,0.5); }
+  .action-btn-export:hover:not(:disabled) { background: rgba(232,196,74,0.18); }
+
+  .sales-table-wrap { overflow-x: auto; }
+  table.st { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  table.st thead th { text-align: left; padding: 0.5rem 0.75rem; font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); background: var(--surface2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.st tbody tr { border-bottom: 1px solid rgba(42,42,42,0.5); transition: background 0.1s; }
+  table.st tbody tr:hover { background: rgba(255,255,255,0.015); }
+  table.st tbody tr:last-child { border-bottom: none; }
+  table.st tbody td { padding: 0.28rem 0.45rem; vertical-align: middle; }
+
+  .ci { background: transparent; border: 1px solid transparent; border-radius: 5px; color: var(--text); font-family: 'DM Mono', monospace; font-size: 0.76rem; padding: 0.28rem 0.5rem; width: 100%; outline: none; transition: all 0.15s; }
+  .ci:hover { border-color: var(--border); background: var(--surface2); }
+  .ci:focus { border-color: var(--accent); background: var(--surface2); }
+  .ci.uncertain { color: var(--uncertain); border-color: rgba(232,132,74,0.3); background: rgba(232,132,74,0.04); }
+  .ci.uncertain:focus { border-color: var(--uncertain); }
+  .ci.lot { color: var(--accent); min-width: 80px; }
+  .ci.bid { color: var(--success); min-width: 90px; }
+  .ci.bidder { color: var(--deepgram); min-width: 75px; }
+  .ci.ts { color: var(--muted); min-width: 60px; font-size: 0.7rem; }
+  .ci.notes { color: var(--muted); min-width: 150px; }
+
+  .conf-badge { display: inline-flex; align-items: center; font-size: 0.6rem; padding: 2px 6px; border-radius: 3px; white-space: nowrap; font-weight: 500; }
+  .conf-high { background: rgba(76,175,125,0.12); color: var(--success); }
+  .conf-low { background: rgba(232,132,74,0.12); color: var(--uncertain); }
+
+  .del-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 0.85rem; padding: 0.2rem 0.4rem; border-radius: 4px; transition: all 0.15s; }
+  .del-btn:hover { color: var(--danger); background: rgba(224,85,85,0.1); }
+
+  .empty-grid { padding: 2.5rem 1rem; text-align: center; color: var(--muted); font-size: 0.82rem; line-height: 2; }
+
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem 0.65rem; }
+  .meta-grid label { margin-bottom: 0.2rem; }
+  .meta-grid input { margin-bottom: 0; }
+
+  .key-note { font-size: 0.67rem; color: var(--muted); line-height: 1.5; margin-top: -0.5rem; margin-bottom: 0.8rem; }
+
+  /* Summary bar */
+  .summary-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 1rem; }
+  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.75rem 0.85rem; }
+  .summary-label { font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .summary-value { font-size: 1.2rem; font-weight: 600; font-family: 'DM Mono', monospace; color: var(--text); }
+  .summary-value.green { color: var(--success); }
+  .summary-value.yellow { color: var(--accent); }
+
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } body { padding: 1rem; } .summary-bar { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">Auction<span>Scribe</span></div>
+  </div>
+  <div class="subtitle">AI Transcription &amp; Sale Extraction</div>
+  <a href="help.html" class="nav-link">? Help</a>
+</header>
+
+<div class="page-tabs">
+  <button class="page-tab active" id="ptab-transcribe" onclick="showTab('transcribe')">🎙️ Transcribe</button>
+  <button class="page-tab" id="ptab-sales" onclick="showTab('sales')">📋 Sales Data</button>
+</div>
+
+<!-- ══════════════════ TAB 1: TRANSCRIBE ══════════════════ -->
+<div class="tab-page active" id="tab-transcribe">
+  <div class="layout">
+
+    <div>
+      <!-- API Keys -->
+      <div class="panel">
+        <div class="panel-title">API Keys</div>
+        <div class="service-tabs">
+          <button class="service-tab active-dg" id="tab-dg" onclick="selectService('deepgram')">
+            <span class="svc-name">Deepgram</span>
+            <span class="svc-tag">Transcription · $0.0077/min</span>
+          </button>
+          <button class="service-tab" id="tab-ai" onclick="selectService('assemblyai')">
+            <span class="svc-name">AssemblyAI</span>
+            <span class="svc-tag">Transcription · $0.0025/min</span>
+          </button>
+        </div>
+        <label>Transcription API Key</label>
+        <input type="password" id="apiKey" placeholder="dg_xxxxxxxxxxxxxxxxxxxx" />
+
+        <label>Claude API Key <span style="color:var(--accent);font-size:0.65rem">(for sale data extraction)</span></label>
+        <input type="password" id="claudeKey" placeholder="sk-ant-xxxxxxxxxxxxxxxxxxxx" />
+        <div class="key-note">Get a free key at console.anthropic.com — used to identify Lot IDs, winning bids &amp; bidder numbers from the transcript. Costs pennies per auction.</div>
+
+        <div style="font-size:0.67rem;color:var(--muted)">🔒 Keys stay in your browser — sent only to the respective service</div>
+      </div>
+
+      <!-- Auction Details -->
+      <div class="panel">
+        <div class="panel-title">Auction Details</div>
+        <div class="meta-grid">
+          <div><label>Auction Name</label><input type="text" id="auctionName" placeholder="Estate Sale #42" /></div>
+          <div><label>Date</label><input type="date" id="auctionDate" /></div>
+          <div><label>Location</label><input type="text" id="auctionLocation" placeholder="Miami, FL" /></div>
+          <div><label>Auctioneer</label><input type="text" id="auctioneer" placeholder="Name" /></div>
+        </div>
+      </div>
+
+      <!-- Mode & Controls -->
+      <div class="panel">
+        <div class="panel-title">Mode</div>
+        <div class="mode-toggle">
+          <button class="mode-btn active" id="btn-live" onclick="setMode('live')">🎙️ Live Mic</button>
+          <button class="mode-btn" id="btn-file" onclick="setMode('file')">📁 Upload File</button>
+        </div>
+
+        <div id="live-controls">
+          <div class="status-bar"><div class="status-dot" id="statusDot"></div><span id="statusText">Ready</span></div>
+          <div class="alert alert-err" id="alertBox"></div>
+          <button class="btn btn-primary" id="startBtn" onclick="startLive()">🎙️ Start Recording</button>
+          <button class="btn btn-danger" id="stopBtn" onclick="stopLive()" disabled>⏹ Stop</button>
+        </div>
+
+        <div id="file-controls" style="display:none">
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="fileInput" accept="audio/*,video/*" onchange="handleFileSelect(this)" />
+            <div class="drop-icon">🎵</div>
+            <div class="drop-text">Drop audio file or click to browse<br><small>MP3, WAV, M4A, OGG, MP4, WEBM</small></div>
+            <div class="drop-filename" id="fileName"></div>
+          </div>
+          <div class="alert alert-err" id="alertBoxFile"></div>
+          <button class="btn btn-primary" id="transcribeBtn" onclick="transcribeFile()" disabled>⚡ Transcribe File</button>
+        </div>
+
+        <div class="divider"></div>
+        <button class="btn btn-primary" id="extractBtn" onclick="runExtraction()" disabled>🤖 Extract Sale Data with AI</button>
+        <button class="btn btn-success" id="exportTranscriptBtn" onclick="exportTranscriptExcel()" disabled>📊 Download Transcript Excel</button>
+        <button class="btn btn-ghost" onclick="clearAll()">🗑 Clear All</button>
+      </div>
+    </div>
+
+    <!-- Right -->
+    <div class="right-panel">
+      <div style="border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+        <div class="panel-header">
+          <div class="panel-header-title">Live Transcript</div>
+          <div id="modeBadge" class="badge badge-live">● Live</div>
+        </div>
+        <div class="transcript-box" id="transcriptBox">
+          <div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>
+        </div>
+      </div>
+
+      <div class="extract-bar" id="extractBar">
+        <div class="extract-spinner"></div>
+        <div class="extract-text"><strong>Claude AI</strong> is reading the transcript and identifying Lot IDs, winning bids, and bidder numbers…</div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+        <div class="panel-header">
+          <div class="panel-header-title">Transcript Lines · <span id="rowCount">0</span></div>
+        </div>
+        <div id="transcriptTableWrap"><div class="empty-grid" style="padding:1.5rem">No data yet.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════ TAB 2: SALES DATA ══════════════════ -->
+<div class="tab-page" id="tab-sales">
+
+  <!-- Summary cards -->
+  <div class="summary-bar" id="summaryBar" style="display:none">
+    <div class="summary-card"><div class="summary-label">Total Sales</div><div class="summary-value yellow" id="sumCount">0</div></div>
+    <div class="summary-card"><div class="summary-label">Total Proceeds</div><div class="summary-value green" id="sumTotal">$0</div></div>
+    <div class="summary-card"><div class="summary-label">High Bid</div><div class="summary-value" id="sumHigh">—</div></div>
+    <div class="summary-card"><div class="summary-label">Low Bid</div><div class="summary-value" id="sumLow">—</div></div>
+  </div>
+
+  <div class="extract-bar" id="extractBar2" style="margin-bottom:1rem">
+    <div class="extract-spinner"></div>
+    <div class="extract-text"><strong>Claude AI</strong> is reading the transcript and identifying sales data…</div>
+  </div>
+
+  <div class="sales-section">
+    <div class="sales-header">
+      <div>
+        <div class="sales-count">Sales Extracted: <strong id="salesCount">0</strong></div>
+        <div style="font-size:0.63rem;color:var(--muted);margin-top:3px"><span style="color:var(--uncertain)">■</span> orange = AI best guess · click any cell to edit</div>
+      </div>
+      <div class="sales-actions">
+        <button class="action-btn action-btn-add" onclick="addBlankRow()">+ Add Row</button>
+        <button class="action-btn action-btn-export" id="exportSalesBtn" onclick="exportSalesExcel()" disabled>📊 Download Excel</button>
+      </div>
+    </div>
+    <div class="sales-table-wrap" id="salesTableWrap">
+      <div class="empty-grid">No sales data yet.<br>Go to <strong style="color:var(--accent)">Transcribe</strong> tab → record or upload audio → click <strong style="color:var(--accent)">"Extract Sale Data with AI"</strong>.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:0.7rem;font-size:0.7rem;color:var(--muted);line-height:1.7">
+    All cells are editable — click any value to correct it. Orange cells are AI best guesses where the audio was ambiguous. Changes are reflected immediately in the Excel export.
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let svcMode = 'deepgram';
+let inputMode = 'live';
+let mediaRecorder = null;
+let wsocket = null;
+let txRows = [];
+let salesRows = [];
+let selFile = null;
+let isRec = false;
+let idCtr = 1;
+
+// ── Tab nav ────────────────────────────────────────────────────────────────
+function showTab(name) {
+  ['transcribe','sales'].forEach(t => {
+    document.getElementById('tab-' + t).classList.toggle('active', t === name);
+    document.getElementById('ptab-' + t).classList.toggle('active', t === name);
+  });
+}
+
+// ── Service / mode ─────────────────────────────────────────────────────────
+function selectService(s) {
+  svcMode = s;
+  document.getElementById('tab-dg').className = 'service-tab' + (s==='deepgram'?' active-dg':'');
+  document.getElementById('tab-ai').className = 'service-tab' + (s==='assemblyai'?' active-ai':'');
+  document.getElementById('apiKey').placeholder = s==='deepgram' ? 'dg_xxxxxxxxxxxxxxxxxxxx' : 'your_assemblyai_api_key';
+}
+
+function setMode(m) {
+  inputMode = m;
+  document.getElementById('btn-live').classList.toggle('active', m==='live');
+  document.getElementById('btn-file').classList.toggle('active', m==='file');
+  document.getElementById('live-controls').style.display = m==='live'?'':'none';
+  document.getElementById('file-controls').style.display = m==='file'?'':'none';
+  document.getElementById('modeBadge').className = 'badge ' + (m==='live'?'badge-live':'badge-rec');
+  document.getElementById('modeBadge').textContent = m==='live'?'● Live':'▶ Recorded';
+}
+
+// ── Live mic ───────────────────────────────────────────────────────────────
+async function startLive() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) return showAlert('alertBox','Enter your Deepgram API key first.');
+  if (svcMode==='assemblyai') return showAlert('alertBox','Live mic requires Deepgram. Use File Upload for AssemblyAI.');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    wsocket = new WebSocket(
+      'wss://api.deepgram.com/v1/listen?model=nova-2&language=en&smart_format=true&diarize=true&punctuate=true&utterances=true',
+      ['token', key]
+    );
+    wsocket.onopen = () => {
+      setStat('live','Recording…');
+      document.getElementById('startBtn').disabled = true;
+      document.getElementById('stopBtn').disabled = false;
+      isRec = true;
+      mediaRecorder = new MediaRecorder(stream, {mimeType:'audio/webm;codecs=opus'});
+      mediaRecorder.ondataavailable = e => { if (e.data.size>0 && wsocket.readyState===1) wsocket.send(e.data); };
+      mediaRecorder.start(250);
+    };
+    wsocket.onmessage = e => {
+      const d = JSON.parse(e.data);
+      if (d.type==='Results' && d.is_final) {
+        const alt = d.channel?.alternatives?.[0];
+        if (!alt || !alt.transcript.trim()) return;
+        const words = alt.words||[];
+        addTxRow(words[0]?.start??0, `Speaker ${(words[0]?.speaker??0)+1}`, alt.transcript.trim());
+      }
+    };
+    wsocket.onerror = () => showAlert('alertBox','WebSocket error — check your Deepgram API key.');
+    wsocket.onclose = () => { if (isRec) stopLive(); };
+  } catch(err) { showAlert('alertBox','Mic access denied: '+err.message); }
+}
+
+function stopLive() {
+  isRec = false;
+  mediaRecorder?.stop();
+  mediaRecorder?.stream?.getTracks().forEach(t=>t.stop());
+  wsocket?.close();
+  setStat('done','Recording stopped — ready to extract');
+  document.getElementById('startBtn').disabled = false;
+  document.getElementById('stopBtn').disabled = true;
+  if (txRows.length) document.getElementById('extractBtn').disabled = false;
+}
+
+// ── File upload ────────────────────────────────────────────────────────────
+function handleFileSelect(inp) {
+  selFile = inp.files[0];
+  if (selFile) { document.getElementById('fileName').textContent = selFile.name; document.getElementById('transcribeBtn').disabled = false; }
+}
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e=>{e.preventDefault();dz.classList.add('dragover');});
+dz.addEventListener('dragleave', ()=>dz.classList.remove('dragover'));
+dz.addEventListener('drop', e=>{
+  e.preventDefault(); dz.classList.remove('dragover');
+  const f=e.dataTransfer.files[0];
+  if(f){selFile=f;document.getElementById('fileName').textContent=f.name;document.getElementById('transcribeBtn').disabled=false;}
+});
+
+async function transcribeFile() {
+  const key = document.getElementById('apiKey').value.trim();
+  if (!key) return showAlert('alertBoxFile','Enter your API key first.');
+  if (!selFile) return showAlert('alertBoxFile','Select an audio file first.');
+  setStat('processing','Uploading & transcribing…');
+  document.getElementById('transcribeBtn').disabled = true;
+  document.getElementById('transcribeBtn').textContent = '⏳ Processing…';
+  try {
+    if (svcMode==='deepgram') await doDeepgram(key);
+    else await doAssemblyAI(key);
+    setStat('done','Transcription complete — ready to extract');
+    if (txRows.length) document.getElementById('extractBtn').disabled = false;
+  } catch(err) { showAlert('alertBoxFile','Error: '+err.message); setStat('','Error — try again'); }
+  document.getElementById('transcribeBtn').disabled = false;
+  document.getElementById('transcribeBtn').textContent = '⚡ Transcribe File';
+}
+
+async function doDeepgram(key) {
+  const res = await fetch(
+    'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&diarize=true&punctuate=true&utterances=true',
+    {method:'POST', headers:{'Authorization':'Token '+key,'Content-Type':selFile.type}, body:selFile}
+  );
+  if (!res.ok) throw new Error(`Deepgram ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const utterances = data.results?.utterances;
+  if (utterances?.length) utterances.forEach(u=>addTxRow(u.start,`Speaker ${(u.speaker??0)+1}`,u.transcript.trim()));
+  else { const a=data.results?.channels?.[0]?.alternatives?.[0]; if(a) addTxRow(0,'Speaker 1',a.transcript.trim()); }
+}
+
+async function doAssemblyAI(key) {
+  const up = await fetch('https://api.assemblyai.com/v2/upload',{method:'POST',headers:{'authorization':key,'content-type':'application/octet-stream'},body:selFile});
+  if (!up.ok) throw new Error(`Upload failed: ${up.status}`);
+  const {upload_url} = await up.json();
+  const tx = await fetch('https://api.assemblyai.com/v2/transcript',{method:'POST',headers:{'authorization':key,'content-type':'application/json'},body:JSON.stringify({audio_url:upload_url,speaker_labels:true,punctuate:true,format_text:true})});
+  if (!tx.ok) throw new Error(`Request failed: ${tx.status}`);
+  const {id} = await tx.json();
+  setStat('processing','Waiting for AssemblyAI…');
+  for (let i=0;i<120;i++) {
+    await new Promise(r=>setTimeout(r,3000));
+    const poll = await fetch(`https://api.assemblyai.com/v2/transcript/${id}`,{headers:{'authorization':key}});
+    const result = await poll.json();
+    if (result.status==='completed') { (result.utterances||[]).forEach(u=>addTxRow(u.start/1000,`Speaker ${u.speaker}`,u.text.trim())); return; }
+    if (result.status==='error') throw new Error(result.error);
+    setStat('processing',`Processing… (${i*3}s)`);
+  }
+  throw new Error('Timed out');
+}
+
+// ── Transcript data ────────────────────────────────────────────────────────
+function addTxRow(sec, spk, text) {
+  txRows.push({timestamp:fmtTime(sec), speaker:spk, text});
+  renderTxBox(); renderTxTable();
+  document.getElementById('exportTranscriptBtn').disabled = false;
+}
+
+function renderTxBox() {
+  const box = document.getElementById('transcriptBox');
+  box.innerHTML = txRows.map(r=>`<div class="t-line"><span class="t-ts">${r.timestamp}</span><span class="t-spk">${r.speaker}</span><span class="t-txt">${esc(r.text)}</span></div>`).join('');
+  box.scrollTop = box.scrollHeight;
+}
+
+function renderTxTable() {
+  document.getElementById('rowCount').textContent = txRows.length;
+  const body = txRows.map(r=>`<tr>
+    <td style="padding:.3rem .8rem;font-family:'DM Mono',monospace;font-size:.68rem;color:var(--accent)">${r.timestamp}</td>
+    <td style="padding:.3rem .8rem;font-family:'DM Mono',monospace;font-size:.68rem;color:var(--deepgram)">${esc(r.speaker)}</td>
+    <td style="padding:.3rem .8rem;font-size:.75rem;color:var(--text)">${esc(r.text)}</td>
+  </tr>`).join('');
+  document.getElementById('transcriptTableWrap').innerHTML = `<table style="width:100%;border-collapse:collapse">
+    <thead style="background:var(--surface2);border-bottom:1px solid var(--border)">
+      <tr>
+        <th style="padding:.4rem .8rem;text-align:left;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)">Time</th>
+        <th style="padding:.4rem .8rem;text-align:left;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)">Speaker</th>
+        <th style="padding:.4rem .8rem;text-align:left;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)">Transcript</th>
+      </tr>
+    </thead><tbody>${body}</tbody></table>`;
+}
+
+// ── AI Extraction ──────────────────────────────────────────────────────────
+async function runExtraction() {
+  const claudeKey = document.getElementById('claudeKey').value.trim();
+  if (!claudeKey) return showAlert('alertBox','Enter your Claude API key to run extraction. Get one free at console.anthropic.com');
+  if (!txRows.length) return showAlert('alertBox','Transcribe some audio first.');
+
+  ['extractBar','extractBar2'].forEach(id=>document.getElementById(id).classList.add('show'));
+  document.getElementById('extractBtn').disabled = true;
+
+  const transcript = txRows.map(r=>`[${r.timestamp}] ${r.speaker}: ${r.text}`).join('\n');
+
+  const systemPrompt = `You are an expert auction data extractor. Read an auction transcript and identify every COMPLETED sale — meaning a lot or item that was announced as sold.
+
+For each completed sale, extract:
+- lot_id: The lot number, sale number, auction ID, or item identifier (e.g. "Lot 42", "Item 7", "Sale 123", "#45"). Include the label if present.
+- winning_bid: The final sold dollar amount as a number only (e.g. 500, 1250.50). No $ symbol. Null if not found.
+- bidder_number: The winning bidder's paddle, card, or bidder number as a string (e.g. "7", "142", "B-34"). Null if not found.
+- timestamp: The transcript timestamp when the sale was finalized (the moment "sold" or equivalent was called).
+- notes: Short context note — item description if mentioned, or explanation if a value was ambiguous/guessed.
+- confidence: "high" if all three key fields (lot_id, winning_bid, bidder_number) are clearly and explicitly stated. "low" if any field was inferred, unclear, or not mentioned.
+
+Auction styles vary greatly. Look for sale-closing cues: "SOLD", "going once going twice sold", "sold to bidder", "congratulations", "next lot". Look for lot identification: "lot number", "item number", "sale number", "#", "number". Look for bid amounts: dollar amounts spoken near a sale close. Look for bidder IDs: "bidder number", "paddle number", "to number", "to the gentleman/lady at", "card number".
+
+When a field is genuinely absent from the audio, set it to null — do NOT fabricate it. If you can make a reasonable inference, include it with confidence "low".
+
+Return ONLY a valid JSON array with no markdown formatting, no backticks, no explanation. Just the raw JSON.
+If no completed sales found: []`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01'},
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: systemPrompt,
+        messages: [{role:'user', content:`Extract all completed sales from this auction transcript:\n\n${transcript}`}]
+      })
+    });
+    if (!res.ok) { const e=await res.json(); throw new Error(e.error?.message||`API error ${res.status}`); }
+    const data = await res.json();
+    const raw = (data.content?.[0]?.text||'[]').replace(/```json|```/g,'').trim();
+    const extracted = JSON.parse(raw);
+
+    extracted.forEach(item => salesRows.push({
+      id: idCtr++,
+      lotId: item.lot_id||'',
+      winningBid: item.winning_bid!=null ? String(item.winning_bid) : '',
+      bidderNum: item.bidder_number!=null ? String(item.bidder_number) : '',
+      timestamp: item.timestamp||'',
+      notes: item.notes||'',
+      confidence: item.confidence||'high'
+    }));
+
+    renderSalesTable();
+    updateSummary();
+    ['extractBar','extractBar2'].forEach(id=>document.getElementById(id).classList.remove('show'));
+    document.getElementById('exportSalesBtn').disabled = false;
+    setStat('done',`${extracted.length} sale${extracted.length!==1?'s':''} extracted`);
+    showTab('sales');
+  } catch(err) {
+    ['extractBar','extractBar2'].forEach(id=>document.getElementById(id).classList.remove('show'));
+    showAlert('alertBox','Extraction error: '+err.message);
+    setStat('','Extraction failed');
+  }
+  document.getElementById('extractBtn').disabled = false;
+}
+
+// ── Sales table ────────────────────────────────────────────────────────────
+function renderSalesTable() {
+  const count = salesRows.length;
+  document.getElementById('salesCount').textContent = count;
+
+  if (!count) {
+    document.getElementById('salesTableWrap').innerHTML = `<div class="empty-grid">No sales extracted yet.<br>Go to <strong style="color:var(--accent)">Transcribe</strong> → record or upload → click <strong style="color:var(--accent)">"Extract Sale Data with AI"</strong>.</div>`;
+    document.getElementById('exportSalesBtn').disabled = true;
+    document.getElementById('summaryBar').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('exportSalesBtn').disabled = false;
+  document.getElementById('summaryBar').style.display = 'grid';
+
+  const tbody = salesRows.map(r => {
+    const low = r.confidence==='low';
+    const uc = low?' uncertain':'';
+    return `<tr data-id="${r.id}">
+      <td><span class="conf-badge ${low?'conf-low':'conf-high'}">${low?'⚠ guess':'✓ sure'}</span></td>
+      <td><input class="ci lot${uc}" value="${ea(r.lotId)}" placeholder="Lot ID" onchange="updSale(${r.id},'lotId',this.value)" oninput="markEdit(this)" /></td>
+      <td><input class="ci bid${uc}" value="${ea(r.winningBid)}" placeholder="0.00" onchange="updSale(${r.id},'winningBid',this.value)" oninput="markEdit(this);updateSummary()" /></td>
+      <td><input class="ci bidder${uc}" value="${ea(r.bidderNum)}" placeholder="Bidder #" onchange="updSale(${r.id},'bidderNum',this.value)" oninput="markEdit(this)" /></td>
+      <td><input class="ci ts" value="${ea(r.timestamp)}" placeholder="00:00" onchange="updSale(${r.id},'timestamp',this.value)" /></td>
+      <td><input class="ci notes" value="${ea(r.notes)}" placeholder="Notes…" onchange="updSale(${r.id},'notes',this.value)" /></td>
+      <td><button class="del-btn" onclick="delRow(${r.id})">✕</button></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('salesTableWrap').innerHTML = `<table class="st">
+    <thead><tr>
+      <th>Confidence</th><th>Lot / Sale ID</th><th>Winning Bid ($)</th>
+      <th>Bidder #</th><th>Timestamp</th><th>Notes</th><th></th>
+    </tr></thead>
+    <tbody>${tbody}</tbody>
+  </table>`;
+}
+
+function updSale(id, field, val) {
+  const r = salesRows.find(r=>r.id===id);
+  if (r) r[field] = val;
+}
+
+function markEdit(inp) {
+  inp.classList.remove('uncertain');
+  const badge = inp.closest('tr')?.querySelector('.conf-badge');
+  if (badge) { badge.className='conf-badge conf-high'; badge.textContent='✓ edited'; }
+}
+
+function delRow(id) {
+  salesRows = salesRows.filter(r=>r.id!==id);
+  renderSalesTable(); updateSummary();
+}
+
+function addBlankRow() {
+  salesRows.push({id:idCtr++,lotId:'',winningBid:'',bidderNum:'',timestamp:'',notes:'',confidence:'high'});
+  renderSalesTable(); updateSummary();
+  const inputs = document.querySelectorAll('.st tbody tr:last-child input');
+  if (inputs[0]) inputs[0].focus();
+}
+
+function updateSummary() {
+  const bids = salesRows.map(r=>parseFloat(r.winningBid)||0);
+  const total = bids.reduce((a,b)=>a+b,0);
+  const validBids = bids.filter(b=>b>0);
+  document.getElementById('sumCount').textContent = salesRows.length;
+  document.getElementById('sumTotal').textContent = '$'+total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  document.getElementById('sumHigh').textContent = validBids.length ? '$'+Math.max(...validBids).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  document.getElementById('sumLow').textContent = validBids.length ? '$'+Math.min(...validBids).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+}
+
+// ── Excel exports ──────────────────────────────────────────────────────────
+function exportSalesExcel() {
+  const name = document.getElementById('auctionName').value||'Auction';
+  const date = document.getElementById('auctionDate').value||'';
+  const loc  = document.getElementById('auctionLocation').value||'';
+  const aucr = document.getElementById('auctioneer').value||'';
+  const bids = salesRows.map(r=>parseFloat(r.winningBid)||0);
+  const total = bids.reduce((a,b)=>a+b,0);
+  const validBids = bids.filter(b=>b>0);
+
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Sale Results
+  const ws1data = [
+    ['AUCTION SALE RESULTS','','','','',''],
+    ['Auction Name:',name,'','Date:',date,''],
+    ['Location:',loc,'','Auctioneer:',aucr,''],
+    ['Total Sales:',salesRows.length,'','Total Proceeds:','$'+total.toFixed(2),''],
+    ['High Bid:',validBids.length?'$'+Math.max(...validBids).toFixed(2):'—','','Low Bid:',validBids.length?'$'+Math.min(...validBids).toFixed(2):'—',''],
+    ['','','','','',''],
+    ['Lot / Sale ID','Winning Bid ($)','Bidder Number','Timestamp','Notes','Confidence'],
+    ...salesRows.map(r=>[r.lotId, r.winningBid?parseFloat(r.winningBid):'', r.bidderNum, r.timestamp, r.notes, r.confidence==='high'?'Confirmed':'AI Best Guess — verify']),
+    ['','','','','',''],
+    ['TOTAL PROCEEDS','$'+total.toFixed(2),'','','','']
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(ws1data);
+  ws1['!cols'] = [{wch:18},{wch:16},{wch:16},{wch:12},{wch:32},{wch:24}];
+  ws1['!merges'] = [{s:{r:0,c:0},e:{r:0,c:5}}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Sale Results');
+
+  // Sheet 2: Full Transcript
+  if (txRows.length) {
+    const ws2 = XLSX.utils.aoa_to_sheet([
+      ['FULL TRANSCRIPT','',''],['Auction:',name,''],['','',''],
+      ['Timestamp','Speaker','Transcript'],
+      ...txRows.map(r=>[r.timestamp,r.speaker,r.text])
+    ]);
+    ws2['!cols'] = [{wch:12},{wch:14},{wch:90}];
+    XLSX.utils.book_append_sheet(wb, ws2, 'Full Transcript');
+  }
+
+  // Sheet 3: Raw Data (flat, importable)
+  const ws3 = XLSX.utils.aoa_to_sheet([
+    ['Lot ID','Winning Bid','Bidder Number','Timestamp','Notes','Confidence','Auction Name','Date','Location','Auctioneer'],
+    ...salesRows.map(r=>[r.lotId, r.winningBid?parseFloat(r.winningBid):'', r.bidderNum, r.timestamp, r.notes, r.confidence, name, date, loc, aucr])
+  ]);
+  ws3['!cols'] = [{wch:14},{wch:14},{wch:14},{wch:12},{wch:30},{wch:16},{wch:18},{wch:14},{wch:16},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws3, 'Raw Data');
+
+  XLSX.writeFile(wb, `${name.replace(/[^a-z0-9]/gi,'_')}_sale_results_${date||'undated'}.xlsx`);
+}
+
+function exportTranscriptExcel() {
+  if (!txRows.length) return;
+  const name=document.getElementById('auctionName').value||'Auction';
+  const date=document.getElementById('auctionDate').value||'';
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet([
+    ['AUCTION TRANSCRIPT','',''],['Auction:',name,'Date:',date],['','',''],
+    ['Timestamp','Speaker','Transcript'],
+    ...txRows.map(r=>[r.timestamp,r.speaker,r.text])
+  ]);
+  ws['!cols']=[{wch:12},{wch:14},{wch:90}];
+  XLSX.utils.book_append_sheet(wb,ws,'Transcript');
+  XLSX.writeFile(wb,`${name.replace(/[^a-z0-9]/gi,'_')}_transcript_${date||'undated'}.xlsx`);
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function fmtTime(sec) {
+  const s=Math.floor(sec),m=Math.floor(s/60),h=Math.floor(m/60);
+  return h>0?`${h}:${String(m%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`:`${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}
+function setStat(type,text) {
+  document.getElementById('statusDot').className='status-dot'+(type?' '+type:'');
+  document.getElementById('statusText').textContent=text;
+}
+function showAlert(id,msg) {
+  const el=document.getElementById(id);
+  el.textContent=msg; el.className='alert alert-err show';
+  setTimeout(()=>el.classList.remove('show'),7000);
+}
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function ea(s) { return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function clearAll() {
+  txRows=[]; salesRows=[]; idCtr=1;
+  document.getElementById('transcriptBox').innerHTML='<div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>';
+  document.getElementById('transcriptTableWrap').innerHTML='<div class="empty-grid" style="padding:1.5rem">No data yet.</div>';
+  document.getElementById('salesTableWrap').innerHTML='<div class="empty-grid">No sales data yet.<br>Go to <strong style="color:var(--accent)">Transcribe</strong> tab → record or upload audio → click <strong style="color:var(--accent)">"Extract Sale Data with AI"</strong>.</div>';
+  document.getElementById('summaryBar').style.display='none';
+  ['rowCount','salesCount'].forEach(id=>document.getElementById(id).textContent='0');
+  ['extractBtn','exportTranscriptBtn','exportSalesBtn'].forEach(id=>document.getElementById(id).disabled=true);
+  document.getElementById('fileName').textContent='';
+  selFile=null;
+  document.getElementById('transcribeBtn').disabled=true;
+  document.getElementById('fileInput').value='';
+  setStat('','Ready');
+}
+
+document.getElementById('auctionDate').valueAsDate = new Date();
+</script>
+</body>
+</html>

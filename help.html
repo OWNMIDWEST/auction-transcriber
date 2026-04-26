@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AuctionScribe — Setup & Help</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1f1f1f;
+    --border: #2a2a2a;
+    --accent: #e8c44a;
+    --accent2: #c9a82c;
+    --text: #f0ece0;
+    --muted: #7a7570;
+    --danger: #e05555;
+    --success: #4caf7d;
+    --deepgram: #13ef93;
+    --assemblyai: #7c3aed;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 2rem;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .logo-row { display: flex; align-items: flex-end; gap: 1.5rem; }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .logo span { color: var(--text); }
+
+  .subtitle {
+    font-size: 0.8rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding-bottom: 0.25rem;
+  }
+
+  .nav-btn {
+    padding: 0.5rem 1.1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn.primary {
+    background: var(--accent);
+    color: #0d0d0d;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+  .nav-btn.primary:hover { background: var(--accent2); border-color: var(--accent2); color: #0d0d0d; }
+
+  /* TOC */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .toc-title {
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.85rem;
+  }
+
+  .toc-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .toc-list li a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: color 0.15s;
+  }
+  .toc-list li a:hover { color: var(--accent); }
+  .toc-list li a::before {
+    content: '';
+    width: 16px;
+    height: 1px;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+
+  /* Sections */
+  .section {
+    margin-bottom: 2.5rem;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .section-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.4rem;
+    color: var(--accent);
+    line-height: 1;
+    min-width: 28px;
+  }
+
+  h2 {
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin-bottom: 1.25rem;
+  }
+
+  p {
+    font-size: 0.9rem;
+    line-height: 1.75;
+    color: #c8c4b8;
+    margin-bottom: 0.85rem;
+  }
+
+  /* Steps */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+  }
+
+  .step-num {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .step-content { flex: 1; }
+
+  .step-title {
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--text);
+    margin-bottom: 0.25rem;
+  }
+
+  .step-desc {
+    font-size: 0.82rem;
+    color: var(--muted);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  .step-desc a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .step-desc a:hover { text-decoration: underline; }
+
+  /* Code */
+  .code-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--deepgram);
+    margin-bottom: 0.75rem;
+    overflow-x: auto;
+    line-height: 1.7;
+    white-space: pre;
+  }
+
+  /* Key example */
+  .key-example {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.7rem 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .key-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .key-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    flex: 1;
+  }
+
+  .key-val.dg { color: var(--deepgram); }
+  .key-val.ai { color: #a78bfa; }
+
+  /* Service cards */
+  .service-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .svc-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+  }
+
+  .svc-card.dg { border-top: 2px solid var(--deepgram); }
+  .svc-card.ai { border-top: 2px solid var(--assemblyai); }
+
+  .svc-name {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 0.6rem;
+  }
+  .svc-name.dg { color: var(--deepgram); }
+  .svc-name.ai { color: #a78bfa; }
+
+  .svc-rows { display: flex; flex-direction: column; gap: 0.35rem; }
+
+  .svc-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+  }
+  .svc-row-label { color: var(--muted); }
+  .svc-row-val { color: var(--text); font-family: 'DM Mono', monospace; }
+
+  /* Tips */
+  .tips {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
+  .tip {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: #c8c4b8;
+    line-height: 1.6;
+  }
+
+  .tip-icon {
+    font-size: 1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* Alert box */
+  .alert-info {
+    background: rgba(232,196,74,0.07);
+    border: 1px solid rgba(232,196,74,0.25);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+    font-size: 0.82rem;
+    color: #d4b445;
+    line-height: 1.65;
+    margin-bottom: 1rem;
+  }
+
+  .alert-info strong { color: var(--accent); }
+
+  /* Excel table preview */
+  .xl-preview {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+
+  .xl-sheet-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+  }
+
+  .xl-tab {
+    padding: 0.45rem 1rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+    border-right: 1px solid var(--border);
+  }
+
+  .xl-tab.active {
+    background: var(--surface);
+    color: var(--success);
+    font-weight: 600;
+  }
+
+  .xl-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; font-family: 'DM Mono', monospace; }
+  .xl-table th { background: rgba(76,175,125,0.1); color: var(--success); padding: 0.4rem 0.75rem; text-align: left; font-weight: 600; border-bottom: 1px solid var(--border); }
+  .xl-table td { padding: 0.35rem 0.75rem; color: #c8c4b8; border-bottom: 1px solid rgba(42,42,42,0.4); }
+  .xl-table tr:last-child td { border-bottom: none; }
+  .xl-table .ts { color: var(--accent); }
+  .xl-table .spk { color: var(--deepgram); }
+
+  /* Footer */
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .footer-text { font-size: 0.75rem; color: var(--muted); }
+
+  @media (max-width: 600px) {
+    .service-cards { grid-template-columns: 1fr; }
+    body { padding: 1rem; }
+    .logo { font-size: 2.2rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-row">
+    <div>
+      <div class="logo">Auction<span>Scribe</span></div>
+    </div>
+    <div class="subtitle">Setup &amp; Help</div>
+  </div>
+  <a href="index.html" class="nav-btn primary">↗ Open App</a>
+</header>
+
+<!-- Table of Contents -->
+<div class="toc">
+  <div class="toc-title">On this page</div>
+  <ul class="toc-list">
+    <li><a href="#get-started">Get started in 3 steps</a></li>
+    <li><a href="#api-keys">Getting your API key</a></li>
+    <li><a href="#which-service">Which service should I use?</a></li>
+    <li><a href="#live-mode">Live mic recording</a></li>
+    <li><a href="#file-mode">Transcribing recorded files</a></li>
+    <li><a href="#excel">Understanding the Excel export</a></li>
+    <li><a href="#tips">Tips for auction audio</a></li>
+    <li><a href="#troubleshooting">Troubleshooting</a></li>
+    <li><a href="#github">Putting it on GitHub</a></li>
+  </ul>
+</div>
+
+<!-- 1. Get Started -->
+<div class="section" id="get-started">
+  <div class="section-header">
+    <div class="section-num">01</div>
+    <h2>Get started in 3 steps</h2>
+  </div>
+  <div class="divider"></div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">Get a free API key</div>
+        <p class="step-desc">Sign up at <a href="https://console.deepgram.com" target="_blank">Deepgram</a> (recommended — $200 free credit) or <a href="https://assemblyai.com" target="_blank">AssemblyAI</a> ($50 free credit). No credit card required for either.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">Paste your key into the app</div>
+        <p class="step-desc">In the app, select your service (Deepgram or AssemblyAI), then paste your API key into the API Key field. The key stays in your browser — it is never sent anywhere except directly to the service you chose.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">Start recording or upload a file</div>
+        <p class="step-desc">Choose Live Mic for real-time auction transcription, or File Upload to process a recording. When finished, click Download Excel to get your formatted spreadsheet.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. API Keys -->
+<div class="section" id="api-keys">
+  <div class="section-header">
+    <div class="section-num">02</div>
+    <h2>Getting your API key</h2>
+  </div>
+  <div class="divider"></div>
+
+  <p>Each service has a free tier — you only need one key to get started. Here is exactly where to find each one.</p>
+
+  <div class="service-cards">
+    <div class="svc-card dg">
+      <div class="svc-name dg">Deepgram</div>
+      <div class="steps" style="gap:0.5rem">
+        <div class="step" style="padding:0.6rem 0.75rem">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <p class="step-desc">Go to <a href="https://console.deepgram.com" target="_blank">console.deepgram.com</a></p>
+          </div>
+        </div>
+        <div class="step" style="padding:0.6rem 0.75rem">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <p class="step-desc">Sign up — no credit card needed</p>
+          </div>
+        </div>
+        <div class="step" style="padding:0.6rem 0.75rem">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <p class="step-desc">Click <strong style="color:var(--text)">API Keys</strong> in the left sidebar</p>
+          </div>
+        </div>
+        <div class="step" style="padding:0.6rem 0.75rem">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <p class="step-desc">Click <strong style="color:var(--text)">Create a New API Key</strong> and copy it</p>
+          </div>
+        </div>
+      </div>
+      <div class="key-example" style="margin-top:0.75rem">
+        <span class="key-label">Looks like</span>
+        <span class="key-val dg">dg_a1b2c3d4e5f6g7h8...</span>
+      </div>
+    </div>
+
+    <div class="svc-card ai">
+      <div class="svc-name ai">AssemblyAI</div>
+      <div class="steps" style="gap:0.5rem">
+        <div class="step" style="padding:0.6rem 0.75rem">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <p class="step-desc">Go to <a href="https://assemblyai.com" target="_blank">assemblyai.com</a></p>
+          </div>
+        </div>
+        <div class="step" style="padding:0.6rem 0.75rem">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <p class="step-desc">Sign up — no credit card needed</p>
+          </div>
+        </div>
+        <div class="step" style="padding:0.6rem 0.75rem">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <p class="step-desc">Your key is on the <strong style="color:var(--text)">dashboard home page</strong> — no hunting required</p>
+          </div>
+        </div>
+        <div class="step" style="padding:0.6rem 0.75rem">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <p class="step-desc">Copy it and paste into the app</p>
+          </div>
+        </div>
+      </div>
+      <div class="key-example" style="margin-top:0.75rem">
+        <span class="key-label">Looks like</span>
+        <span class="key-val ai">a1b2c3d4e5f6g7h8i9...</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert-info">
+    <strong>Your key is safe.</strong> It is stored only in your browser's memory for the current session. It is sent directly to Deepgram or AssemblyAI — never to any other server. Closing the tab clears it.
+  </div>
+</div>
+
+<!-- 3. Which Service -->
+<div class="section" id="which-service">
+  <div class="section-header">
+    <div class="section-num">03</div>
+    <h2>Which service should I use?</h2>
+  </div>
+  <div class="divider"></div>
+  <p>Both services work great for auction audio. The main difference is speed vs. cost.</p>
+  <div class="service-cards">
+    <div class="svc-card dg">
+      <div class="svc-name dg">Deepgram — recommended</div>
+      <div class="svc-rows">
+        <div class="svc-row"><span class="svc-row-label">Price</span><span class="svc-row-val">$0.0077/min</span></div>
+        <div class="svc-row"><span class="svc-row-label">Free credit</span><span class="svc-row-val">$200 (~433 hrs)</span></div>
+        <div class="svc-row"><span class="svc-row-label">Live mic</span><span class="svc-row-val" style="color:var(--success)">✓ Yes (&lt;300ms)</span></div>
+        <div class="svc-row"><span class="svc-row-label">File upload</span><span class="svc-row-val" style="color:var(--success)">✓ Yes</span></div>
+        <div class="svc-row"><span class="svc-row-label">Speaker ID</span><span class="svc-row-val" style="color:var(--success)">✓ Included</span></div>
+        <div class="svc-row"><span class="svc-row-label">Best for</span><span class="svc-row-val">Live auctions</span></div>
+      </div>
+    </div>
+    <div class="svc-card ai">
+      <div class="svc-name ai">AssemblyAI</div>
+      <div class="svc-rows">
+        <div class="svc-row"><span class="svc-row-label">Price</span><span class="svc-row-val">$0.0025/min</span></div>
+        <div class="svc-row"><span class="svc-row-label">Free credit</span><span class="svc-row-val">$50 (~333 hrs)</span></div>
+        <div class="svc-row"><span class="svc-row-label">Live mic</span><span class="svc-row-val" style="color:var(--muted)">File upload only</span></div>
+        <div class="svc-row"><span class="svc-row-label">File upload</span><span class="svc-row-val" style="color:var(--success)">✓ Yes</span></div>
+        <div class="svc-row"><span class="svc-row-label">Speaker ID</span><span class="svc-row-val" style="color:var(--accent)">+$0.02/hr extra</span></div>
+        <div class="svc-row"><span class="svc-row-label">Best for</span><span class="svc-row-val">Recorded files</span></div>
+      </div>
+    </div>
+  </div>
+  <p style="margin-top:0.25rem">If you are not sure, start with <strong style="color:var(--deepgram)">Deepgram</strong>. The free credit lasts longer and it handles both live and recorded audio.</p>
+</div>
+
+<!-- 4. Live Mode -->
+<div class="section" id="live-mode">
+  <div class="section-header">
+    <div class="section-num">04</div>
+    <h2>Live mic recording</h2>
+  </div>
+  <div class="divider"></div>
+  <p>Use this mode during an active auction to get a real-time running transcript on screen as the auctioneer speaks.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">Select Deepgram and paste your key</div>
+        <p class="step-desc">Live mode only works with Deepgram. Make sure the Deepgram tab is selected and your key is entered.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">Fill in auction details (optional but recommended)</div>
+        <p class="step-desc">Adding the auction name, date, location, and auctioneer means this info is automatically included in your Excel export.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">Click "Start Recording"</div>
+        <p class="step-desc">Your browser will ask for microphone permission — click Allow. The status indicator turns red and the transcript begins appearing within a second or two.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <div class="step-title">Click "Stop" when finished</div>
+        <p class="step-desc">Then click Download Excel to save your transcript immediately.</p>
+      </div>
+    </div>
+  </div>
+  <div class="alert-info">
+    <strong>Tip:</strong> For best accuracy, position your microphone or laptop close to the auctioneer. Auctioneers speak fast — the closer the mic, the more words the AI catches correctly.
+  </div>
+</div>
+
+<!-- 5. File Mode -->
+<div class="section" id="file-mode">
+  <div class="section-header">
+    <div class="section-num">05</div>
+    <h2>Transcribing recorded files</h2>
+  </div>
+  <div class="divider"></div>
+  <p>Use this mode to transcribe an audio or video recording of a past auction. Works with both Deepgram and AssemblyAI.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">Switch to "Upload File" mode</div>
+        <p class="step-desc">Click the File Upload button in the Mode section of the left panel.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">Drop or browse for your audio file</div>
+        <p class="step-desc">Supported formats: MP3, WAV, M4A, OGG, FLAC, MP4, WEBM. Files can be any length.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">Click "Transcribe File"</div>
+        <p class="step-desc">The file uploads directly to your chosen service. Deepgram returns results in seconds. AssemblyAI may take 1–3 minutes depending on file length — a status timer shows progress.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <div class="step-title">Download Excel when complete</div>
+        <p class="step-desc">The transcript appears on screen and the Download Excel button becomes active.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 6. Excel -->
+<div class="section" id="excel">
+  <div class="section-header">
+    <div class="section-num">06</div>
+    <h2>Understanding the Excel export</h2>
+  </div>
+  <div class="divider"></div>
+  <p>Each download is a <code style="font-family:'DM Mono',monospace;font-size:0.82rem;color:var(--accent)">.xlsx</code> file named after your auction (e.g. <code style="font-family:'DM Mono',monospace;font-size:0.82rem;color:var(--accent)">Estate_Sale_42_transcript_2026-04-26.xlsx</code>) with three sheets:</p>
+
+  <div class="xl-preview">
+    <div class="xl-sheet-tabs">
+      <div class="xl-tab active">Transcript</div>
+      <div class="xl-tab">Speaker Summary</div>
+      <div class="xl-tab">Raw Data</div>
+    </div>
+    <table class="xl-table">
+      <thead>
+        <tr><th>Timestamp</th><th>Speaker</th><th>Transcript</th><th>Word Count</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="ts">00:00</td><td class="spk">Speaker 1</td><td>Welcome everyone, we're going to get started with lot number one...</td><td>12</td></tr>
+        <tr><td class="ts">00:08</td><td class="spk">Speaker 1</td><td>A beautiful antique dresser, starting bid five hundred dollars.</td><td>9</td></tr>
+        <tr><td class="ts">00:14</td><td class="spk">Speaker 2</td><td>Five hundred!</td><td>2</td></tr>
+        <tr><td class="ts">00:15</td><td class="spk">Speaker 1</td><td>Five hundred, do I hear six? Six hundred? Six hundred going once...</td><td>11</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="tips">
+    <div class="tip"><span class="tip-icon">📋</span><span><strong style="color:var(--text)">Sheet 1 — Transcript:</strong> Full formatted transcript with your auction name, date, location, and auctioneer in the header. Includes timestamps, speaker labels, and word count per line.</span></div>
+    <div class="tip"><span class="tip-icon">📊</span><span><strong style="color:var(--text)">Sheet 2 — Speaker Summary:</strong> Each identified speaker listed with total lines spoken, total word count, and percentage of the conversation.</span></div>
+    <div class="tip"><span class="tip-icon">🗃️</span><span><strong style="color:var(--text)">Sheet 3 — Raw Data:</strong> Clean, flat table with all fields — ideal for importing into other systems, filtering in Excel, or running your own analysis.</span></div>
+  </div>
+</div>
+
+<!-- 7. Tips -->
+<div class="section" id="tips">
+  <div class="section-header">
+    <div class="section-num">07</div>
+    <h2>Tips for auction audio</h2>
+  </div>
+  <div class="divider"></div>
+  <div class="tips">
+    <div class="tip"><span class="tip-icon">🎙️</span><span>Position the mic as close to the auctioneer as possible. Auction rooms are noisy — distance and background chatter are the biggest causes of transcription errors.</span></div>
+    <div class="tip"><span class="tip-icon">📋</span><span>Fill in the auction name, date, location, and auctioneer fields before you start. This information gets embedded in the Excel header automatically — much easier than adding it later.</span></div>
+    <div class="tip"><span class="tip-icon">🏷️</span><span>Deepgram lets you add custom vocabulary (lot names, item types, company names) in the Deepgram console under Settings → Custom Models. This significantly boosts accuracy for specialized auction terms.</span></div>
+    <div class="tip"><span class="tip-icon">🔊</span><span>If you're recording a multi-auctioneer session, speaker diarization will assign a number to each distinct voice. You can rename them in Excel afterward (e.g. change "Speaker 1" to "John").</span></div>
+    <div class="tip"><span class="tip-icon">📁</span><span>For recorded files, MP3 and WAV tend to produce the best results. If you're recording on a phone, use the built-in Voice Memos app (iPhone) or Recorder app (Android) and export as M4A or WAV.</span></div>
+    <div class="tip"><span class="tip-icon">💾</span><span>Download your Excel file before closing the browser tab. The transcript is held in memory only — refreshing or closing the page clears it.</span></div>
+  </div>
+</div>
+
+<!-- 8. Troubleshooting -->
+<div class="section" id="troubleshooting">
+  <div class="section-header">
+    <div class="section-num">08</div>
+    <h2>Troubleshooting</h2>
+  </div>
+  <div class="divider"></div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">?</div>
+      <div class="step-content">
+        <div class="step-title">"WebSocket error — check your API key"</div>
+        <p class="step-desc">Your Deepgram key is either invalid or was pasted incorrectly. Go back to <a href="https://console.deepgram.com" target="_blank">console.deepgram.com</a>, copy your key again, and re-paste it. Make sure there are no extra spaces.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">?</div>
+      <div class="step-content">
+        <div class="step-title">Microphone access denied</div>
+        <p class="step-desc">Click the lock icon in your browser's address bar and allow microphone access for this site. Then refresh the page and try again.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">?</div>
+      <div class="step-content">
+        <div class="step-title">File upload fails with AssemblyAI</div>
+        <p class="step-desc">AssemblyAI requires the file to upload to their servers first, which can take a minute for large files. If it times out, try a shorter clip to verify your key is working, then try the full file again.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">?</div>
+      <div class="step-content">
+        <div class="step-title">Transcript is empty after recording</div>
+        <p class="step-desc">Make sure your microphone is picking up sound — check your system audio settings and confirm the correct input device is selected. Try speaking directly into the mic to test.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">?</div>
+      <div class="step-content">
+        <div class="step-title">The app works offline?</div>
+        <p class="step-desc">No — an internet connection is required to send audio to Deepgram or AssemblyAI for transcription. The app itself needs no install, but it calls the AI service APIs in real time.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 9. GitHub -->
+<div class="section" id="github">
+  <div class="section-header">
+    <div class="section-num">09</div>
+    <h2>Putting it on GitHub</h2>
+  </div>
+  <div class="divider"></div>
+  <p>Hosting on GitHub Pages gives you a permanent public URL for the app — no server, no cost.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">Create a new repo on GitHub</div>
+        <p class="step-desc">Go to <a href="https://github.com/new" target="_blank">github.com/new</a>, name it <code style="font-family:'DM Mono',monospace;font-size:0.82rem">auction-transcriber</code>, set it to Public, and click Create.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">Push your files</div>
+        <p class="step-desc">Open a terminal in your project folder and run:</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="code-block">git init
+git add .
+git commit -m "Initial commit — AuctionScribe"
+git branch -M main
+git remote add origin https://github.com/YOUR_USERNAME/auction-transcriber.git
+git push -u origin main</div>
+
+  <div class="steps" style="margin-top:0.75rem">
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">Enable GitHub Pages</div>
+        <p class="step-desc">In your repo on GitHub, go to <strong style="color:var(--text)">Settings → Pages</strong>. Under Source, select <strong style="color:var(--text)">Deploy from a branch</strong>, choose <strong style="color:var(--text)">main</strong>, and click Save.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <div class="step-title">Your app is live</div>
+        <p class="step-desc">Within a minute, your app will be available at:<br><code style="font-family:'DM Mono',monospace;font-size:0.82rem;color:var(--deepgram)">https://YOUR_USERNAME.github.io/auction-transcriber</code><br>The help page will be at the same URL with <code style="font-family:'DM Mono',monospace;font-size:0.82rem">/help.html</code> added.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-text">AuctionScribe — no backend, no tracking, no stored data</div>
+  <a href="index.html" class="nav-btn primary">↗ Open App</a>
+</footer>
+
+</body>
+</html>
