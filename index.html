@@ -159,6 +159,8 @@
 
   .rerun-btn { padding: 0.45rem 0.9rem; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 0.72rem; cursor: pointer; transition: all 0.15s; }
   .rerun-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .delete-draft-btn { padding: 0.45rem 0.9rem; border-radius: 7px; border: 1px solid var(--danger); background: rgba(224,85,85,0.08); color: var(--danger); font-family: 'DM Sans', sans-serif; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .delete-draft-btn:hover { background: rgba(224,85,85,0.2); }
 
   .add-row-btn { padding: 0.45rem 0.9rem; border-radius: 7px; border: 1px solid var(--success); background: rgba(76,175,125,0.08); color: var(--success); font-family: 'DM Sans', sans-serif; font-size: 0.72rem; cursor: pointer; transition: all 0.15s; }
   .add-row-btn:hover { background: rgba(76,175,125,0.18); }
@@ -181,6 +183,7 @@
   .ci.bid { color: var(--success); min-width: 90px; }
   .ci.bidder { color: var(--deepgram); min-width: 70px; }
   .ci.ts { color: var(--muted); min-width: 58px; font-size: 0.7rem; }
+  .ci.min { color: #7ec8e3; min-width: 85px; }
   .ci.notes { color: var(--muted); min-width: 140px; }
 
   .conf-badge { display: inline-flex; align-items: center; font-size: 0.6rem; padding: 2px 6px; border-radius: 3px; white-space: nowrap; font-weight: 500; }
@@ -355,6 +358,7 @@
             <button class="add-row-btn" onclick="addDraftRow()">+ Add Row</button>
             <button class="rerun-btn" onclick="runExtraction()">↺ Re-run AI</button>
             <button class="keep-btn" id="keepBtn" onclick="keepSales()">✓ Keep</button>
+            <button class="delete-draft-btn" onclick="deleteDraft()" title="Discard all extracted sales">✕ Delete</button>
           </div>
         </div>
         <div class="tbl-wrap" id="draftTableWrap">
@@ -440,6 +444,7 @@ function selectService(s) {
   document.getElementById('tab-dg').className = 'service-tab'+(s==='deepgram'?' active-dg':'');
   document.getElementById('tab-ai').className = 'service-tab'+(s==='assemblyai'?' active-ai':'');
   document.getElementById('apiKey').placeholder = s==='deepgram'?'dg_xxxxxxxxxxxxxxxxxxxx':'your_assemblyai_api_key';
+  localStorage.setItem('as_service', s);
 }
 
 function setMode(m) {
@@ -593,7 +598,6 @@ async function runExtraction() {
   if (!txRows.length) return showAlert('alertBox','Transcribe some audio first.');
 
   document.getElementById('extractBar').classList.add('show');
-  document.getElementById('draftSection').style.display='none';
   document.getElementById('keepConfirm').classList.remove('show');
   document.getElementById('extractBtn').disabled=true;
 
@@ -602,12 +606,13 @@ async function runExtraction() {
   const systemPrompt = `You are an expert auction data extractor. Read an auction transcript and identify every COMPLETED sale.
 
 For each completed sale extract:
-- lot_id: The lot number, sale number, auction ID, or item identifier (e.g. "Lot 42", "Item 7", "#45"). Include the label.
-- winning_bid: Final sold dollar amount as a number only (e.g. 500, 1250.50). No $ symbol. Null if not found.
+- lot_id: The lot number, sale number, auction ID, or item identifier (e.g. "Lot 42", "Item 7", "#45"). Include the label. IMPORTANT: Convert any word numbers to digits — "forty two" becomes "42", "lot twenty" becomes "Lot 20", "item seven" becomes "Item 7".
+- winning_bid: Final sold dollar amount as a number only (e.g. 500, 1250.50). No $ symbol. Convert word numbers to digits — "five hundred" = 500, "twelve fifty" = 1250, "fifteen thousand" = 15000. Null if not found.
+- min_bid: The minimum or opening bid/starting bid announced for this lot, as a number only. Convert word numbers to digits. Null if no minimum bid was mentioned.
 - bidder_number: Winning bidder paddle/card/bidder number as a string (e.g. "7", "142", "B-34"). Null if not found.
 - timestamp: Transcript timestamp when the sale was finalized.
 - notes: Short context — item description if mentioned, or why a value was ambiguous.
-- confidence: "high" if all three key fields are clearly and explicitly stated. "low" if any field was inferred or unclear.
+- confidence: "high" if all three key fields (lot_id, winning_bid, bidder_number) are clearly stated. "low" if any was inferred or unclear.
 
 Look for sale-closing cues: "SOLD", "going once going twice sold", "sold to bidder", "congratulations to", "next lot".
 Look for lot IDs: "lot number", "item number", "sale number", "#", "number".
@@ -637,6 +642,7 @@ Return ONLY a valid JSON array. No markdown, no backticks, no explanation. Just 
       id:idCtr++,
       lotId:item.lot_id||'',
       winningBid:item.winning_bid!=null?String(item.winning_bid):'',
+      minBid:item.min_bid!=null?String(item.min_bid):'',
       bidderNum:item.bidder_number!=null?String(item.bidder_number):'',
       timestamp:item.timestamp||'',
       notes:item.notes||'',
@@ -674,6 +680,7 @@ function renderDraftTable() {
       <td><span class="conf-badge ${low?'conf-low':'conf-high'}">${low?'⚠ guess':'✓ sure'}</span></td>
       <td><input class="ci lot${uc}" value="${ea(r.lotId)}" placeholder="Lot ID" onchange="updDraft(${r.id},'lotId',this.value)" oninput="markEdit(this)" /></td>
       <td><input class="ci bid${uc}" value="${ea(r.winningBid)}" placeholder="0.00" onchange="updDraft(${r.id},'winningBid',this.value)" oninput="markEdit(this)" /></td>
+      <td><input class="ci min${uc}" value="${ea(r.minBid||'')}" placeholder="0.00" onchange="updDraft(${r.id},'minBid',this.value)" oninput="markEdit(this)" /></td>
       <td><input class="ci bidder${uc}" value="${ea(r.bidderNum)}" placeholder="Bidder #" onchange="updDraft(${r.id},'bidderNum',this.value)" oninput="markEdit(this)" /></td>
       <td><input class="ci ts" value="${ea(r.timestamp)}" placeholder="00:00" onchange="updDraft(${r.id},'timestamp',this.value)" /></td>
       <td><input class="ci notes" value="${ea(r.notes)}" placeholder="Notes…" onchange="updDraft(${r.id},'notes',this.value)" /></td>
@@ -685,7 +692,7 @@ function renderDraftTable() {
     <table class="gt">
       <thead><tr>
         <th>Confidence</th><th>Lot / Sale ID</th><th>Winning Bid ($)</th>
-        <th>Bidder #</th><th>Timestamp</th><th>Notes</th><th></th>
+        <th>Min Bid ($)</th><th>Bidder #</th><th>Timestamp</th><th>Notes</th><th></th>
       </tr></thead>
       <tbody>${tbody}</tbody>
     </table>`;
@@ -701,8 +708,15 @@ function markEdit(inp) {
 
 function delDraftRow(id) { draftRows=draftRows.filter(r=>r.id!==id); renderDraftTable(); }
 
+function deleteDraft() {
+  draftRows = [];
+  document.getElementById('draftSection').style.display='none';
+  document.getElementById('keepConfirm').classList.remove('show');
+  setStat('done','Draft deleted — transcript still available');
+}
+
 function addDraftRow() {
-  draftRows.push({id:idCtr++,lotId:'',winningBid:'',bidderNum:'',timestamp:'',notes:'',confidence:'high'});
+  draftRows.push({id:idCtr++,lotId:'',winningBid:'',minBid:'',bidderNum:'',timestamp:'',notes:'',confidence:'high'});
   renderDraftTable();
   const inputs=document.querySelectorAll('#draftTableWrap tbody tr:last-child input');
   if(inputs[0]) inputs[0].focus();
@@ -758,6 +772,7 @@ function renderSalesTable() {
   const tbody=confirmedRows.map(r=>`<tr data-id="${r.id}">
     <td><input class="ci lot" value="${ea(r.lotId)}" placeholder="Lot ID" onchange="updConf(${r.id},'lotId',this.value)" /></td>
     <td><input class="ci bid" value="${ea(r.winningBid)}" placeholder="0.00" onchange="updConf(${r.id},'winningBid',this.value)" oninput="updateSummary()" /></td>
+    <td><input class="ci min" value="${ea(r.minBid||'')}" placeholder="0.00" onchange="updConf(${r.id},'minBid',this.value)" /></td>
     <td><input class="ci bidder" value="${ea(r.bidderNum)}" placeholder="Bidder #" onchange="updConf(${r.id},'bidderNum',this.value)" /></td>
     <td><input class="ci ts" value="${ea(r.timestamp)}" placeholder="00:00" onchange="updConf(${r.id},'timestamp',this.value)" /></td>
     <td><input class="ci notes" value="${ea(r.notes)}" placeholder="Notes…" onchange="updConf(${r.id},'notes',this.value)" /></td>
@@ -767,7 +782,7 @@ function renderSalesTable() {
   document.getElementById('salesTableWrap').innerHTML=`
     <table class="gt">
       <thead><tr>
-        <th>Lot / Sale ID</th><th>Winning Bid ($)</th><th>Bidder #</th>
+        <th>Lot / Sale ID</th><th>Winning Bid ($)</th><th>Min Bid ($)</th><th>Bidder #</th>
         <th>Timestamp</th><th>Notes</th><th></th>
       </tr></thead>
       <tbody>${tbody}</tbody>
@@ -777,7 +792,7 @@ function renderSalesTable() {
 function updConf(id,field,val){const r=confirmedRows.find(r=>r.id===id);if(r) r[field]=val;}
 function delConfRow(id){confirmedRows=confirmedRows.filter(r=>r.id!==id);renderSalesTable();updateSummary();updateTabBadge();}
 function addConfirmedRow(){
-  confirmedRows.push({id:idCtr++,lotId:'',winningBid:'',bidderNum:'',timestamp:'',notes:'',confidence:'high'});
+  confirmedRows.push({id:idCtr++,lotId:'',winningBid:'',minBid:'',bidderNum:'',timestamp:'',notes:'',confidence:'high'});
   renderSalesTable();updateSummary();updateTabBadge();
   const inputs=document.querySelectorAll('#salesTableWrap tbody tr:last-child input');
   if(inputs[0]) inputs[0].focus();
@@ -821,8 +836,8 @@ function exportSalesExcel() {
     ['Total Sales:',confirmedRows.length,'','Total Proceeds:','$'+total.toFixed(2)],
     ['High Bid:',valid.length?'$'+Math.max(...valid).toFixed(2):'—','','Low Bid:',valid.length?'$'+Math.min(...valid).toFixed(2):'—'],
     ['','','','',''],
-    ['Lot / Sale ID','Winning Bid ($)','Bidder Number','Timestamp','Notes'],
-    ...confirmedRows.map(r=>[r.lotId, r.winningBid?parseFloat(r.winningBid):'', r.bidderNum, r.timestamp, r.notes]),
+    ['Lot / Sale ID','Winning Bid ($)','Min Bid ($)','Bidder Number','Timestamp','Notes'],
+    ...confirmedRows.map(r=>[r.lotId, r.winningBid?parseFloat(r.winningBid):'', r.minBid?parseFloat(r.minBid):'', r.bidderNum, r.timestamp, r.notes]),
     ['','','','',''],
     ['TOTAL PROCEEDS','$'+total.toFixed(2),'','','']
   ]);
@@ -843,8 +858,8 @@ function exportSalesExcel() {
 
   // Sheet 3: Raw Data
   const ws3=XLSX.utils.aoa_to_sheet([
-    ['Lot ID','Winning Bid','Bidder Number','Timestamp','Notes','Auction Name','Date','Location','Auctioneer'],
-    ...confirmedRows.map(r=>[r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.bidderNum,r.timestamp,r.notes,name,date,loc,aucr])
+    ['Lot ID','Winning Bid','Min Bid','Bidder Number','Timestamp','Notes','Auction Name','Date','Location','Auctioneer'],
+    ...confirmedRows.map(r=>[r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.minBid?parseFloat(r.minBid):'',r.bidderNum,r.timestamp,r.notes,name,date,loc,aucr])
   ]);
   ws3['!cols']=[{wch:14},{wch:14},{wch:14},{wch:12},{wch:30},{wch:18},{wch:14},{wch:16},{wch:14}];
   XLSX.utils.book_append_sheet(wb,ws3,'Raw Data');
@@ -901,43 +916,52 @@ document.getElementById('auctionDate').valueAsDate = new Date();
 // ══════════════════════════════════════════════════════
 function toggleRemember(inputId, checkboxId, storageKey) {
   const checked = document.getElementById(checkboxId).checked;
-  const val = document.getElementById(inputId).value.trim();
-  if (checked && val) {
-    localStorage.setItem(storageKey, val);
-    localStorage.setItem(storageKey+'_remember', '1');
+  if (checked) {
+    const val = document.getElementById(inputId).value.trim();
+    if (val) {
+      localStorage.setItem(storageKey, val);
+      localStorage.setItem(storageKey+'_on', '1');
+    }
   } else {
     localStorage.removeItem(storageKey);
-    localStorage.removeItem(storageKey+'_remember');
+    localStorage.removeItem(storageKey+'_on');
   }
 }
 
 function conditionalSave(inputId, checkboxId) {
-  if (document.getElementById(checkboxId)?.checked) {
-    const storageKey = checkboxId==='rememberTx' ? 'as_tx_key' : 'as_claude_key';
-    localStorage.setItem(storageKey, document.getElementById(inputId).value);
+  const cb = document.getElementById(checkboxId);
+  if (cb && cb.checked) {
+    const storageKey = storageKey = checkboxId==='rememberTx' ? 'as_tx_key' : 'as_claude_key';
+    const val = document.getElementById(inputId).value;
+    if (val) localStorage.setItem(storageKey, val);
   }
 }
 
 function forgetKey(inputId, checkboxId, storageKey) {
   localStorage.removeItem(storageKey);
-  localStorage.removeItem(storageKey+'_remember');
+  localStorage.removeItem(storageKey+'_on');
   document.getElementById(inputId).value = '';
   document.getElementById(checkboxId).checked = false;
 }
 
 function loadSavedKeys() {
+  // Transcription key
   const txKey = localStorage.getItem('as_tx_key');
-  const txRem = localStorage.getItem('as_tx_key_remember');
-  if (txKey && txRem) {
+  const txOn  = localStorage.getItem('as_tx_key_on');
+  if (txKey && txOn) {
     document.getElementById('apiKey').value = txKey;
     document.getElementById('rememberTx').checked = true;
   }
+  // Claude key
   const clKey = localStorage.getItem('as_claude_key');
-  const clRem = localStorage.getItem('as_claude_key_remember');
-  if (clKey && clRem) {
+  const clOn  = localStorage.getItem('as_claude_key_on');
+  if (clKey && clOn) {
     document.getElementById('claudeKey').value = clKey;
     document.getElementById('rememberClaude').checked = true;
   }
+  // Restore service selection
+  const svc = localStorage.getItem('as_service');
+  if (svc) selectService(svc);
 }
 loadSavedKeys();
 
