@@ -203,6 +203,25 @@
   .summary-value.green { color: var(--success); }
   .summary-value.yellow { color: var(--accent); }
 
+  /* Auction block — one per Keep */
+  .auction-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; }
+  .sah-outer { border-bottom: 1px solid var(--border); }
+  .block-summary { display: grid; grid-template-columns: repeat(4,1fr); gap: 0; border-top: 1px solid var(--border); }
+  .block-stat { padding: 0.65rem 1rem; border-right: 1px solid var(--border); }
+  .block-stat:last-child { border-right: none; }
+  .block-stat-label { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+  .block-stat-val { font-size: 1.1rem; font-weight: 600; font-family: 'DM Mono', monospace; color: var(--text); }
+  .block-stat-val.yellow { color: var(--accent); }
+  .block-stat-val.green { color: var(--success); }
+
+  /* Auction details header on sales tab */
+  .sales-auction-header { background: var(--surface); padding: 1rem 1.25rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+  .sah-details { display: flex; flex-direction: column; gap: 4px; }
+  .sah-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.6rem; letter-spacing: 0.05em; color: var(--accent); line-height: 1; }
+  .sah-meta { font-size: 0.75rem; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .sah-sep { color: var(--border); }
+  .sah-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
   .sales-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
   .sales-header { padding: 0.85rem 1.1rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 8px; }
   .sales-count { font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
@@ -214,6 +233,10 @@
   .action-btn-add:hover:not(:disabled) { background: rgba(76,175,125,0.2); }
   .action-btn-export { background: rgba(232,196,74,0.1); color: var(--accent); border-color: rgba(232,196,74,0.5); }
   .action-btn-export:hover:not(:disabled) { background: rgba(232,196,74,0.18); }
+  .action-btn-csv { background: rgba(19,239,147,0.08); color: var(--deepgram); border-color: rgba(19,239,147,0.4); }
+  .action-btn-csv:hover:not(:disabled) { background: rgba(19,239,147,0.16); }
+  .action-btn-clear { background: rgba(224,85,85,0.08); color: var(--danger); border-color: rgba(224,85,85,0.4); }
+  .action-btn-clear:hover:not(:disabled) { background: rgba(224,85,85,0.18); }
 
   /* ── Keep confirmation flash ── */
   .keep-confirm { display: none; align-items: center; gap: 10px; padding: 0.9rem 1.1rem; background: rgba(76,175,125,0.08); border: 1px solid rgba(76,175,125,0.3); border-radius: 12px; font-size: 0.82rem; color: var(--success); }
@@ -331,7 +354,10 @@
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
         <div class="panel-header">
           <div class="panel-header-title">Live Transcript · <span id="rowCount">0</span> lines</div>
-          <div id="modeBadge" class="badge badge-live">● Live</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button onclick="clearTranscript()" style="padding:0.25rem 0.65rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.68rem;cursor:pointer;transition:all 0.15s" onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">✕ Clear</button>
+            <div id="modeBadge" class="badge badge-live">● Live</div>
+          </div>
         </div>
         <div class="transcript-box" id="transcriptBox">
           <div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>
@@ -379,35 +405,11 @@
 
 <!-- ════════════════════════ TAB 2: SALES DATA ════════════════════════ -->
 <div class="tab-page" id="tab-sales">
-
-  <div class="summary-bar" id="summaryBar" style="display:none">
-    <div class="summary-card"><div class="summary-label">Confirmed Sales</div><div class="summary-value yellow" id="sumCount">0</div></div>
-    <div class="summary-card"><div class="summary-label">Total Proceeds</div><div class="summary-value green" id="sumTotal">$0</div></div>
-    <div class="summary-card"><div class="summary-label">High Bid</div><div class="summary-value" id="sumHigh">—</div></div>
-    <div class="summary-card"><div class="summary-label">Low Bid</div><div class="summary-value" id="sumLow">—</div></div>
-  </div>
-
-  <div class="sales-section">
-    <div class="sales-header">
-      <div>
-        <div class="sales-count">Confirmed Sales: <strong id="salesCount">0</strong></div>
-        <div style="font-size:0.63rem;color:var(--muted);margin-top:3px">All cells remain editable after confirmation</div>
-      </div>
-      <div class="sales-actions">
-        <button class="action-btn action-btn-add" onclick="addConfirmedRow()">+ Add Row</button>
-        <button class="action-btn action-btn-export" id="exportSalesBtn" onclick="exportSalesExcel()" disabled>📊 Download Excel</button>
-      </div>
+  <div id="auctionBlocksWrap">
+    <div class="empty-grid" id="salesEmptyMsg" style="padding:3rem 1rem;color:var(--muted);text-align:center;font-size:0.85rem;line-height:2">
+      No confirmed sales yet.<br>
+      Go to <strong style="color:var(--accent)">Transcribe</strong> → transcribe audio → extract with AI → review → click <strong style="color:var(--success)">Keep</strong>.
     </div>
-    <div class="tbl-wrap" id="salesTableWrap">
-      <div class="empty-grid">
-        No confirmed sales yet.<br>
-        Go to <strong style="color:var(--accent)">Transcribe</strong> → transcribe audio → extract with AI → review → click <strong style="color:var(--success)">Keep</strong>.
-      </div>
-    </div>
-  </div>
-
-  <div style="margin-top:0.7rem;font-size:0.7rem;color:var(--muted);line-height:1.7">
-    All cells are editable — click any value to make corrections. Changes reflect immediately in the Excel export.
   </div>
 </div>
 
@@ -419,12 +421,13 @@ let svcMode = 'deepgram';
 let inputMode = 'live';
 let mediaRecorder = null;
 let wsocket = null;
-let txRows = [];        // transcript lines
-let draftRows = [];     // AI extracted — under review
-let confirmedRows = []; // kept / confirmed sales
+let txRows = [];         // transcript lines
+let draftRows = [];      // AI extracted — under review
+let auctionBlocks = [];  // each kept batch = { blockId, meta, rows[] }
 let selFile = null;
 let isRec = false;
 let idCtr = 1;
+let blockCtr = 1;
 
 // ══════════════════════════════════════════════════════
 // TAB NAV
@@ -723,25 +726,26 @@ function addDraftRow() {
 }
 
 // ══════════════════════════════════════════════════════
-// KEEP — promote draft to confirmed
+// KEEP — create a new auction block from draft
 // ══════════════════════════════════════════════════════
 function keepSales() {
   if (!draftRows.length) return;
 
-  // Add draft rows into confirmed list
-  draftRows.forEach(r => confirmedRows.push({...r, id:idCtr++}));
+  const blockId = blockCtr++;
+  const meta = {
+    name:     document.getElementById('auctionName').value     || 'Auction',
+    date:     document.getElementById('auctionDate').value     || '',
+    location: document.getElementById('auctionLocation').value || '',
+    auctioneer: document.getElementById('auctioneer').value    || ''
+  };
+  const rows = draftRows.map(r => ({...r, id: idCtr++}));
+  auctionBlocks.push({ blockId, meta, rows });
 
   const count = draftRows.length;
   draftRows = [];
 
-  // Update confirmed tab
-  renderSalesTable();
-  updateSummary();
-
-  // Update tab badge
-  const badge = document.getElementById('salesTabCount');
-  badge.textContent = confirmedRows.length;
-  badge.style.display = 'inline';
+  renderAuctionBlock(blockId);
+  updateTabBadge();
 
   // Hide draft, show confirmation
   document.getElementById('draftSection').style.display='none';
@@ -749,105 +753,148 @@ function keepSales() {
   document.getElementById('keepConfirmText').textContent = `${count} sale${count!==1?'s':''} confirmed and added to Sales Data.`;
   confirm.classList.add('show');
   setTimeout(()=>confirm.classList.remove('show'), 6000);
-
   setStat('done',`${count} sale${count!==1?'s':''} confirmed`);
-  document.getElementById('exportSalesBtn').disabled=false;
 }
 
 // ══════════════════════════════════════════════════════
-// CONFIRMED SALES TABLE
+// AUCTION BLOCKS — each Keep creates one self-contained block
 // ══════════════════════════════════════════════════════
-function renderSalesTable() {
-  const count=confirmedRows.length;
-  document.getElementById('salesCount').textContent=count;
-  document.getElementById('summaryBar').style.display=count?'grid':'none';
+function renderAuctionBlock(blockId) {
+  const block = auctionBlocks.find(b => b.blockId === blockId);
+  if (!block) return;
 
-  if (!count) {
-    document.getElementById('salesTableWrap').innerHTML='<div class="empty-grid">No confirmed sales yet.<br>Go to <strong style="color:var(--accent)">Transcribe</strong> → transcribe audio → extract with AI → review → click <strong style="color:var(--success)">Keep</strong>.</div>';
-    document.getElementById('exportSalesBtn').disabled=true;
-    return;
+  document.getElementById('salesEmptyMsg').style.display = 'none';
+
+  let wrap = document.getElementById('block-' + blockId);
+  if (!wrap) {
+    wrap = document.createElement('div');
+    wrap.id = 'block-' + blockId;
+    wrap.className = 'auction-block';
+    document.getElementById('auctionBlocksWrap').appendChild(wrap);
   }
-  document.getElementById('exportSalesBtn').disabled=false;
 
-  const tbody=confirmedRows.map(r=>`<tr data-id="${r.id}">
-    <td><input class="ci lot" value="${ea(r.lotId)}" placeholder="Lot ID" onchange="updConf(${r.id},'lotId',this.value)" /></td>
-    <td><input class="ci bid" value="${ea(r.winningBid)}" placeholder="0.00" onchange="updConf(${r.id},'winningBid',this.value)" oninput="updateSummary()" /></td>
-    <td><input class="ci min" value="${ea(r.minBid||'')}" placeholder="0.00" onchange="updConf(${r.id},'minBid',this.value)" /></td>
-    <td><input class="ci bidder" value="${ea(r.bidderNum)}" placeholder="Bidder #" onchange="updConf(${r.id},'bidderNum',this.value)" /></td>
-    <td><input class="ci ts" value="${ea(r.timestamp)}" placeholder="00:00" onchange="updConf(${r.id},'timestamp',this.value)" /></td>
-    <td><input class="ci notes" value="${ea(r.notes)}" placeholder="Notes…" onchange="updConf(${r.id},'notes',this.value)" /></td>
-    <td><button class="del-btn" onclick="delConfRow(${r.id})">✕</button></td>
+  const m = block.meta;
+  const bids = block.rows.map(r => parseFloat(r.winningBid)||0);
+  const total = bids.reduce((a,b)=>a+b,0);
+  const valid = bids.filter(b=>b>0);
+  const high  = valid.length ? Math.max(...valid) : null;
+  const low   = valid.length ? Math.min(...valid) : null;
+
+  const tbody = block.rows.map(r => `<tr data-id="${r.id}">
+    <td><input class="ci lot" value="${ea(r.lotId)}" placeholder="Lot ID" onchange="updBlock(${blockId},${r.id},'lotId',this.value)" /></td>
+    <td><input class="ci bid" value="${ea(r.winningBid)}" placeholder="0.00" onchange="updBlock(${blockId},${r.id},'winningBid',this.value)" oninput="renderAuctionBlock(${blockId})" /></td>
+    <td><input class="ci min" value="${ea(r.minBid||'')}" placeholder="0.00" onchange="updBlock(${blockId},${r.id},'minBid',this.value)" /></td>
+    <td><input class="ci bidder" value="${ea(r.bidderNum)}" placeholder="Bidder #" onchange="updBlock(${blockId},${r.id},'bidderNum',this.value)" /></td>
+    <td><input class="ci ts" value="${ea(r.timestamp)}" placeholder="00:00" onchange="updBlock(${blockId},${r.id},'timestamp',this.value)" /></td>
+    <td><input class="ci notes" value="${ea(r.notes)}" placeholder="Notes..." onchange="updBlock(${blockId},${r.id},'notes',this.value)" /></td>
+    <td><button class="del-btn" onclick="delBlockRow(${blockId},${r.id})">x</button></td>
   </tr>`).join('');
 
-  document.getElementById('salesTableWrap').innerHTML=`
-    <table class="gt">
-      <thead><tr>
-        <th>Lot / Sale ID</th><th>Winning Bid ($)</th><th>Min Bid ($)</th><th>Bidder #</th>
-        <th>Timestamp</th><th>Notes</th><th></th>
-      </tr></thead>
-      <tbody>${tbody}</tbody>
-    </table>`;
+  wrap.innerHTML = `
+    <div class="sah-outer">
+      <div class="sales-auction-header">
+        <div class="sah-details">
+          <div class="sah-name">${esc(m.name)}</div>
+          <div class="sah-meta">
+            ${m.date ? `<span>${m.date}</span><span class="sah-sep">·</span>` : ''}
+            ${m.location ? `<span>${esc(m.location)}</span><span class="sah-sep">·</span>` : ''}
+            ${m.auctioneer ? `<span>Auctioneer: ${esc(m.auctioneer)}</span>` : ''}
+          </div>
+        </div>
+        <div class="sah-actions">
+          <button class="action-btn action-btn-add" onclick="addBlockRow(${blockId})">+ Add Row</button>
+          <button class="action-btn action-btn-export" onclick="exportBlockExcel(${blockId})">Excel</button>
+          <button class="action-btn action-btn-csv" onclick="exportBlockCSV(${blockId})">CSV</button>
+          <button class="action-btn action-btn-clear" onclick="deleteBlock(${blockId})">Delete</button>
+        </div>
+      </div>
+      <div class="block-summary">
+        <div class="block-stat"><div class="block-stat-label">Sales</div><div class="block-stat-val yellow">${block.rows.length}</div></div>
+        <div class="block-stat"><div class="block-stat-label">Total Proceeds</div><div class="block-stat-val green">$${total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
+        <div class="block-stat"><div class="block-stat-label">High Bid</div><div class="block-stat-val">${high!==null?'$'+high.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</div></div>
+        <div class="block-stat"><div class="block-stat-label">Low Bid</div><div class="block-stat-val">${low!==null?'$'+low.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}</div></div>
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="gt">
+        <thead><tr>
+          <th>Lot / Sale ID</th><th>Winning Bid ($)</th><th>Min Bid ($)</th>
+          <th>Bidder #</th><th>Timestamp</th><th>Notes</th><th></th>
+        </tr></thead>
+        <tbody>${tbody}</tbody>
+      </table>
+    </div>`;
 }
 
-function updConf(id,field,val){const r=confirmedRows.find(r=>r.id===id);if(r) r[field]=val;}
-function delConfRow(id){confirmedRows=confirmedRows.filter(r=>r.id!==id);renderSalesTable();updateSummary();updateTabBadge();}
-function addConfirmedRow(){
-  confirmedRows.push({id:idCtr++,lotId:'',winningBid:'',minBid:'',bidderNum:'',timestamp:'',notes:'',confidence:'high'});
-  renderSalesTable();updateSummary();updateTabBadge();
-  const inputs=document.querySelectorAll('#salesTableWrap tbody tr:last-child input');
-  if(inputs[0]) inputs[0].focus();
+function updBlock(blockId, rowId, field, val) {
+  const block = auctionBlocks.find(b=>b.blockId===blockId);
+  if (!block) return;
+  const row = block.rows.find(r=>r.id===rowId);
+  if (row) row[field] = val;
 }
 
-function updateTabBadge(){
-  const badge=document.getElementById('salesTabCount');
-  badge.textContent=confirmedRows.length;
-  badge.style.display=confirmedRows.length?'inline':'none';
+function delBlockRow(blockId, rowId) {
+  const block = auctionBlocks.find(b=>b.blockId===blockId);
+  if (!block) return;
+  block.rows = block.rows.filter(r=>r.id!==rowId);
+  if (!block.rows.length) { deleteBlock(blockId); } else { renderAuctionBlock(blockId); }
 }
 
-function updateSummary(){
-  const bids=confirmedRows.map(r=>parseFloat(r.winningBid)||0);
-  const total=bids.reduce((a,b)=>a+b,0);
-  const valid=bids.filter(b=>b>0);
-  document.getElementById('sumCount').textContent=confirmedRows.length;
-  document.getElementById('sumTotal').textContent='$'+total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-  document.getElementById('sumHigh').textContent=valid.length?'$'+Math.max(...valid).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
-  document.getElementById('sumLow').textContent=valid.length?'$'+Math.min(...valid).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+function addBlockRow(blockId) {
+  const block = auctionBlocks.find(b=>b.blockId===blockId);
+  if (!block) return;
+  block.rows.push({id:idCtr++,lotId:'',winningBid:'',minBid:'',bidderNum:'',timestamp:'',notes:'',confidence:'high'});
+  renderAuctionBlock(blockId);
+  const wrap = document.getElementById('block-'+blockId);
+  const inputs = wrap ? wrap.querySelectorAll('tbody tr:last-child input') : [];
+  if (inputs[0]) inputs[0].focus();
+}
+
+function deleteBlock(blockId) {
+  if (!confirm('Delete this auction? This cannot be undone.')) return;
+  auctionBlocks = auctionBlocks.filter(b=>b.blockId!==blockId);
+  const el = document.getElementById('block-'+blockId);
+  if (el) el.remove();
+  updateTabBadge();
+  if (!auctionBlocks.length) document.getElementById('salesEmptyMsg').style.display = 'block';
+}
+
+function updateTabBadge() {
+  const total = auctionBlocks.reduce((sum,b)=>sum+b.rows.length,0);
+  const badge = document.getElementById('salesTabCount');
+  badge.textContent = total;
+  badge.style.display = total ? 'inline' : 'none';
 }
 
 // ══════════════════════════════════════════════════════
-// EXCEL EXPORTS
+// PER-BLOCK EXPORTS
 // ══════════════════════════════════════════════════════
-function exportSalesExcel() {
-  const name=document.getElementById('auctionName').value||'Auction';
-  const date=document.getElementById('auctionDate').value||'';
-  const loc=document.getElementById('auctionLocation').value||'';
-  const aucr=document.getElementById('auctioneer').value||'';
-  const bids=confirmedRows.map(r=>parseFloat(r.winningBid)||0);
-  const total=bids.reduce((a,b)=>a+b,0);
-  const valid=bids.filter(b=>b>0);
-
-  const wb=XLSX.utils.book_new();
-
-  // Sheet 1: Sale Results
-  const ws1=XLSX.utils.aoa_to_sheet([
+function exportBlockExcel(blockId) {
+  const block = auctionBlocks.find(b=>b.blockId===blockId);
+  if (!block) return;
+  const {name,date,location,auctioneer} = block.meta;
+  const rows = block.rows;
+  const bids = rows.map(r=>parseFloat(r.winningBid)||0);
+  const total = bids.reduce((a,b)=>a+b,0);
+  const valid = bids.filter(b=>b>0);
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet([
     ['AUCTION SALE RESULTS','','','',''],
     ['Auction Name:',name,'','Date:',date],
-    ['Location:',loc,'','Auctioneer:',aucr],
-    ['Total Sales:',confirmedRows.length,'','Total Proceeds:','$'+total.toFixed(2)],
+    ['Location:',location,'','Auctioneer:',auctioneer],
+    ['Total Sales:',rows.length,'','Total Proceeds:','$'+total.toFixed(2)],
     ['High Bid:',valid.length?'$'+Math.max(...valid).toFixed(2):'—','','Low Bid:',valid.length?'$'+Math.min(...valid).toFixed(2):'—'],
     ['','','','',''],
     ['Lot / Sale ID','Winning Bid ($)','Min Bid ($)','Bidder Number','Timestamp','Notes'],
-    ...confirmedRows.map(r=>[r.lotId, r.winningBid?parseFloat(r.winningBid):'', r.minBid?parseFloat(r.minBid):'', r.bidderNum, r.timestamp, r.notes]),
+    ...rows.map(r=>[r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.minBid?parseFloat(r.minBid):'',r.bidderNum,r.timestamp,r.notes]),
     ['','','','',''],
     ['TOTAL PROCEEDS','$'+total.toFixed(2),'','','']
   ]);
-  ws1['!cols']=[{wch:18},{wch:16},{wch:16},{wch:12},{wch:32}];
+  ws1['!cols']=[{wch:18},{wch:16},{wch:14},{wch:16},{wch:12},{wch:32}];
   ws1['!merges']=[{s:{r:0,c:0},e:{r:0,c:4}}];
   XLSX.utils.book_append_sheet(wb,ws1,'Sale Results');
-
-  // Sheet 2: Full Transcript
-  if(txRows.length){
-    const ws2=XLSX.utils.aoa_to_sheet([
+  if (txRows.length) {
+    const ws2 = XLSX.utils.aoa_to_sheet([
       ['FULL TRANSCRIPT','',''],['Auction:',name,''],['','',''],
       ['Timestamp','Speaker','Transcript'],
       ...txRows.map(r=>[r.timestamp,r.speaker,r.text])
@@ -855,17 +902,31 @@ function exportSalesExcel() {
     ws2['!cols']=[{wch:12},{wch:14},{wch:90}];
     XLSX.utils.book_append_sheet(wb,ws2,'Full Transcript');
   }
-
-  // Sheet 3: Raw Data
-  const ws3=XLSX.utils.aoa_to_sheet([
+  const ws3 = XLSX.utils.aoa_to_sheet([
     ['Lot ID','Winning Bid','Min Bid','Bidder Number','Timestamp','Notes','Auction Name','Date','Location','Auctioneer'],
-    ...confirmedRows.map(r=>[r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.minBid?parseFloat(r.minBid):'',r.bidderNum,r.timestamp,r.notes,name,date,loc,aucr])
+    ...rows.map(r=>[r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.minBid?parseFloat(r.minBid):'',r.bidderNum,r.timestamp,r.notes,name,date,location,auctioneer])
   ]);
-  ws3['!cols']=[{wch:14},{wch:14},{wch:14},{wch:12},{wch:30},{wch:18},{wch:14},{wch:16},{wch:14}];
+  ws3['!cols']=[{wch:14},{wch:14},{wch:12},{wch:14},{wch:12},{wch:30},{wch:18},{wch:14},{wch:16},{wch:14}];
   XLSX.utils.book_append_sheet(wb,ws3,'Raw Data');
-
-  XLSX.writeFile(wb,`${name.replace(/[^a-z0-9]/gi,'_')}_sale_results_${date||'undated'}.xlsx`);
+  XLSX.writeFile(wb,`${name.replace(/[^a-z0-9]/gi,'_')}_sales_${date||'undated'}.xlsx`);
 }
+
+function exportBlockCSV(blockId) {
+  const block = auctionBlocks.find(b=>b.blockId===blockId);
+  if (!block) return;
+  const {name,date,location,auctioneer} = block.meta;
+  const headers = ['Lot ID','Winning Bid','Min Bid','Bidder Number','Timestamp','Notes','Auction Name','Date','Location','Auctioneer'];
+  const rows = block.rows.map(r=>[r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.minBid?parseFloat(r.minBid):'',r.bidderNum,r.timestamp,r.notes,name,date,location,auctioneer]);
+  const csv = [headers,...rows].map(row=>row.map(cell=>{
+    const s=String(cell??'');
+    return s.includes(',')||s.includes('"')?`"${s.replace(/"/g,'""')}"`  :s;
+  }).join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download=`${name.replace(/[^a-z0-9]/gi,'_')}_sales_${date||'undated'}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
 
 function exportTranscriptExcel(){
   if(!txRows.length) return;
@@ -892,16 +953,14 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function ea(s){return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
 function clearAll(){
-  txRows=[];draftRows=[];confirmedRows=[];idCtr=1;
+  txRows=[];draftRows=[];auctionBlocks=[];idCtr=1;blockCtr=1;
+  document.getElementById('auctionBlocksWrap').innerHTML='<div class="empty-grid" id="salesEmptyMsg" style="padding:3rem 1rem;color:var(--muted);text-align:center;font-size:0.85rem;line-height:2">No confirmed sales yet.<br>Go to <strong style="color:var(--accent)">Transcribe</strong> → transcribe audio → extract with AI → review → click <strong style="color:var(--success)">Keep</strong>.</div>';
   document.getElementById('transcriptBox').innerHTML='<div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>';
   document.getElementById('draftSection').style.display='none';
   document.getElementById('keepConfirm').classList.remove('show');
-  document.getElementById('salesTableWrap').innerHTML='<div class="empty-grid">No confirmed sales yet.<br>Go to <strong style="color:var(--accent)">Transcribe</strong> → transcribe audio → extract with AI → review → click <strong style="color:var(--success)">Keep</strong>.</div>';
-  document.getElementById('summaryBar').style.display='none';
   document.getElementById('rowCount').textContent='0';
-  document.getElementById('salesCount').textContent='0';
   const badge=document.getElementById('salesTabCount');badge.style.display='none';
-  ['extractBtn','exportTranscriptBtn','exportSalesBtn'].forEach(id=>document.getElementById(id).disabled=true);
+  ['extractBtn','exportTranscriptBtn'].forEach(id=>document.getElementById(id).disabled=true);
   document.getElementById('fileName').textContent='';
   selFile=null;
   document.getElementById('transcribeBtn').disabled=true;
@@ -910,6 +969,17 @@ function clearAll(){
 }
 
 document.getElementById('auctionDate').valueAsDate = new Date();
+
+function clearTranscript() {
+  if (txRows.length && !confirm('Clear the live transcript? This cannot be undone.')) return;
+  txRows = [];
+  document.getElementById('transcriptBox').innerHTML = '<div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>';
+  document.getElementById('rowCount').textContent = '0';
+  document.getElementById('exportTranscriptBtn').disabled = true;
+  document.getElementById('extractBtn').disabled = true;
+}
+
+
 
 // ══════════════════════════════════════════════════════
 // KEY PERSISTENCE (localStorage)
