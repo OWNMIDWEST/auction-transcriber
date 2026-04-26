@@ -229,6 +229,14 @@
   .restore-btn { padding: 0.45rem 1rem; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; }
   .restore-btn:hover { border-color: var(--deepgram); color: var(--deepgram); }
 
+  /* Shared auction section header — used in transcript archive, draft, and confirmed blocks */
+  .auction-section-header { padding: 0.85rem 1.1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; background: var(--surface); border-bottom: 1px solid var(--border); }
+  .ash-left { display: flex; flex-direction: column; gap: 3px; }
+  .ash-name { font-family: 'Bebas Neue', sans-serif; font-size: 1.5rem; letter-spacing: 0.05em; color: var(--accent); line-height: 1; }
+  .ash-meta { font-size: 0.72rem; color: var(--muted); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .ash-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ash-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
   /* Auction block — one per Keep */
   .auction-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; }
   .sah-outer { border-bottom: 1px solid var(--border); }
@@ -409,13 +417,11 @@
 
       <!-- ── DRAFT EXTRACTION GRID ── -->
       <div class="draft-section" id="draftSection" style="display:none">
-        <div class="draft-header">
-          <div class="draft-header-left">
-            <div class="draft-title">✦ AI Extracted Sales — <span id="draftAuctionLabel">Review &amp; Edit</span></div>
-            <div class="draft-subtitle">
-              <span style="color:var(--uncertain)">■</span> orange = AI best guess · click any cell to correct it ·
-              when ready click <strong style="color:var(--success)">Keep</strong> to confirm
-            </div>
+        <div id="draftHeaderWrap"></div>
+        <div style="padding:0.5rem 1.1rem;background:rgba(232,132,74,0.05);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+          <div style="font-size:0.68rem;color:var(--muted)">
+            <span style="color:var(--uncertain)">■</span> orange = AI best guess · click any cell to correct it ·
+            when ready click <strong style="color:var(--success)">Keep</strong>
           </div>
           <div class="draft-actions">
             <button class="add-row-btn" onclick="addDraftRow()">+ Add Row</button>
@@ -739,8 +745,8 @@ async function runExtraction() {
 
   document.getElementById('extractBar').classList.add('show');
   document.getElementById('keepConfirm').classList.remove('show');
-  const aLabel = document.getElementById('draftAuctionLabel');
-  if (aLabel) aLabel.textContent = document.getElementById('auctionName').value || 'Review & Edit';
+  const draftHeaderWrap = document.getElementById('draftHeaderWrap');
+  if (draftHeaderWrap) draftHeaderWrap.innerHTML = auctionHeaderHTML(getCurrentMeta());
   document.getElementById('extractBtn').disabled=true;
 
   const transcript = txRows.map(r=>`[${r.timestamp}] ${r.speaker}: ${r.text}`).join('\n');
@@ -948,24 +954,17 @@ function renderAuctionBlock(blockId) {
     <td><button class="del-btn" onclick="delBlockRow(${blockId},${r.id})">x</button></td>
   </tr>`).join('');
 
+  const blockActionsHTML = `
+    <div class="ash-actions">
+      <button class="action-btn action-btn-add" onclick="addBlockRow(${blockId})">+ Add Row</button>
+      <button class="action-btn action-btn-export" onclick="exportBlockExcel(${blockId})">Excel</button>
+      <button class="action-btn action-btn-csv" onclick="exportBlockCSV(${blockId})">CSV</button>
+      <button class="action-btn action-btn-clear" onclick="deleteBlock(${blockId})">Delete</button>
+    </div>`;
+
   wrap.innerHTML = `
     <div class="sah-outer">
-      <div class="sales-auction-header">
-        <div class="sah-details">
-          <div class="sah-name">${esc(m.name)}</div>
-          <div class="sah-meta">
-            ${m.date ? `<span>${m.date}</span><span class="sah-sep">·</span>` : ''}
-            ${m.location ? `<span>${esc(m.location)}</span><span class="sah-sep">·</span>` : ''}
-            ${m.auctioneer ? `<span>Auctioneer: ${esc(m.auctioneer)}</span>` : ''}
-          </div>
-        </div>
-        <div class="sah-actions">
-          <button class="action-btn action-btn-add" onclick="addBlockRow(${blockId})">+ Add Row</button>
-          <button class="action-btn action-btn-export" onclick="exportBlockExcel(${blockId})">Excel</button>
-          <button class="action-btn action-btn-csv" onclick="exportBlockCSV(${blockId})">CSV</button>
-          <button class="action-btn action-btn-clear" onclick="deleteBlock(${blockId})">Delete</button>
-        </div>
-      </div>
+      ${auctionHeaderHTML(m, blockActionsHTML)}
       <div class="block-summary">
         <div class="block-stat"><div class="block-stat-label">Sales</div><div class="block-stat-val yellow">${block.rows.length}</div></div>
         <div class="block-stat"><div class="block-stat-label">Total Proceeds</div><div class="block-stat-val green">$${total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
@@ -1303,6 +1302,34 @@ function clearAll(){
 document.getElementById('auctionDate').valueAsDate = new Date();
 
 // ══════════════════════════════════════════════════════
+// SHARED AUCTION HEADER BUILDER
+// Used identically in transcript archive, draft archive, and confirmed blocks
+// ══════════════════════════════════════════════════════
+function auctionHeaderHTML(meta, rightHTML='') {
+  const metaParts = [];
+  if (meta.date)       metaParts.push(meta.date);
+  if (meta.location)   metaParts.push(esc(meta.location));
+  if (meta.auctioneer) metaParts.push('Auctioneer: '+esc(meta.auctioneer));
+  return `
+    <div class="auction-section-header">
+      <div class="ash-left">
+        <div class="ash-name">${esc(meta.name||'Unnamed Auction')}</div>
+        ${metaParts.length ? `<div class="ash-meta">${metaParts.join('<span class="sah-sep">·</span>')}</div>` : ''}
+      </div>
+      <div class="ash-right">${rightHTML}</div>
+    </div>`;
+}
+
+function getCurrentMeta() {
+  return {
+    name:       document.getElementById('auctionName').value       || 'Unnamed Auction',
+    date:       document.getElementById('auctionDate').value       || '',
+    location:   document.getElementById('auctionLocation').value   || '',
+    auctioneer: document.getElementById('auctioneer').value        || ''
+  };
+}
+
+// ══════════════════════════════════════════════════════
 // NEW AUCTION — archive current transcript + draft, start fresh
 // ══════════════════════════════════════════════════════
 function newAuction() {
@@ -1311,12 +1338,11 @@ function newAuction() {
     return;
   }
 
-  const name = document.getElementById('auctionName').value || 'Unnamed Auction';
-  const date = document.getElementById('auctionDate').value || '';
+  const meta = getCurrentMeta();
 
   // Archive current transcript section
   if (txRows.length) {
-    txSections.push({ name, date, rows: [...txRows] });
+    txSections.push({ meta, rows: [...txRows] });
     renderArchivedSections();
   }
 
@@ -1326,26 +1352,26 @@ function newAuction() {
     if (archiveDiv) {
       const section = document.createElement('div');
       section.className = 'draft-archive-section';
-      section.innerHTML = `
-        <div class="tx-archive-header" onclick="this.nextElementSibling.classList.toggle('collapsed')">
-          <div class="tx-archive-name">📋 ${esc(name)} ${date ? '· '+date : ''}</div>
-          <div class="tx-archive-toggle">▾ collapse</div>
-        </div>
-        <div class="tbl-wrap">
+      const rowsHTML = draftRows.map(r=>`<tr>
+        <td><span class="conf-badge ${r.confidence==='low'?'conf-low':'conf-high'}">${r.confidence==='low'?'⚠ guess':'✓ sure'}</span></td>
+        <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:var(--accent)">${esc(r.lotId||'—')}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:var(--success)">${esc(r.winningBid||'—')}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:#7ec8e3">${esc(r.minBid||'—')}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:var(--deepgram)">${esc(r.bidderNum||'—')}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted)">${esc(r.timestamp||'')}</td>
+        <td style="font-size:0.74rem;color:var(--muted)">${esc(r.notes||'')}</td>
+      </tr>`).join('');
+      const toggleId = 'darch-'+Date.now();
+      section.innerHTML = auctionHeaderHTML(meta,
+        `<button onclick="document.getElementById('${toggleId}').classList.toggle('collapsed')" class="rerun-btn">▾ collapse</button>`
+      ) + `
+        <div id="${toggleId}" class="tbl-wrap">
           <table class="gt">
             <thead><tr>
               <th>Confidence</th><th>Lot / Sale ID</th><th>Winning Bid ($)</th>
               <th>Min Bid ($)</th><th>Bidder #</th><th>Timestamp</th><th>Notes</th>
             </tr></thead>
-            <tbody>${draftRows.map(r=>`<tr>
-              <td><span class="conf-badge ${r.confidence==='low'?'conf-low':'conf-high'}">${r.confidence==='low'?'⚠ guess':'✓ sure'}</span></td>
-              <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:var(--accent)">${esc(r.lotId||'—')}</td>
-              <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:var(--success)">${esc(r.winningBid||'—')}</td>
-              <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:#7ec8e3">${esc(r.minBid||'—')}</td>
-              <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:var(--deepgram)">${esc(r.bidderNum||'—')}</td>
-              <td style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted)">${esc(r.timestamp||'')}</td>
-              <td style="font-size:0.74rem;color:var(--muted)">${esc(r.notes||'')}</td>
-            </tr>`).join('')}</tbody>
+            <tbody>${rowsHTML}</tbody>
           </table>
         </div>`;
       archiveDiv.appendChild(section);
@@ -1361,38 +1387,36 @@ function newAuction() {
   document.getElementById('extractBtn').disabled = true;
   document.getElementById('exportTranscriptBtn').disabled = true;
 
-  // Update label to show new auction name will be used
-  setStat('done', `Archived "${name}" — ready for next auction`);
+  setStat('done', `"${meta.name}" archived — ready for next auction`);
   autoSave();
 }
 
 function renderArchivedSections() {
   const wrap = document.getElementById('archivedSections');
   if (!wrap) return;
-  wrap.innerHTML = txSections.map((sec, idx) => `
-    <div class="tx-archive-section">
-      <div class="tx-archive-header" onclick="document.getElementById('txarch-${idx}').classList.toggle('collapsed')">
-        <div class="tx-archive-name">
-          📁 ${esc(sec.name)} ${sec.date ? '· '+sec.date : ''}
-          <span class="tx-archive-meta">${sec.rows.length} lines</span>
+  wrap.innerHTML = txSections.map((sec, idx) => {
+    const toggleId = 'txarch-'+idx;
+    return `
+      <div class="tx-archive-section">
+        ${auctionHeaderHTML(sec.meta,
+          `<span class="tx-archive-meta">${sec.rows.length} lines</span>
+           <button onclick="document.getElementById('${toggleId}').classList.toggle('collapsed')" class="rerun-btn">▾</button>`
+        )}
+        <div class="tx-archive-body" id="${toggleId}">
+          ${sec.rows.map(r=>`
+            <div class="t-line" style="padding:0.12rem 0.9rem">
+              <span class="t-ts">${r.timestamp}</span>
+              <span class="t-spk">${r.speaker}</span>
+              <span class="t-txt">${esc(r.text)}</span>
+            </div>`).join('')}
         </div>
-        <div class="tx-archive-toggle">▾</div>
       </div>
-      <div class="tx-archive-body" id="txarch-${idx}">
-        ${sec.rows.map(r=>`
-          <div class="t-line" style="padding:0.12rem 0.9rem">
-            <span class="t-ts">${r.timestamp}</span>
-            <span class="t-spk">${r.speaker}</span>
-            <span class="t-txt">${esc(r.text)}</span>
-          </div>`).join('')}
-      </div>
-    </div>
-    <div class="tx-section-divider">
-      <div class="tx-section-divider-line"></div>
-      <div class="tx-section-divider-label">▼ NEW AUCTION</div>
-      <div class="tx-section-divider-line"></div>
-    </div>
-  `).join('');
+      <div class="tx-section-divider">
+        <div class="tx-section-divider-line"></div>
+        <div class="tx-section-divider-label">▼ NEW AUCTION</div>
+        <div class="tx-section-divider-line"></div>
+      </div>`;
+  }).join('');
 }
 
 function clearTranscript() {
@@ -1548,7 +1572,8 @@ function autoRestore() {
     // Restore transcript
     // Restore archived sections
     if (Array.isArray(state.txSections) && state.txSections.length) {
-      txSections = state.txSections;
+      // Migrate old format {name,date,rows} to new {meta,rows}
+      txSections = state.txSections.map(s => s.meta ? s : { meta:{name:s.name||'',date:s.date||'',location:'',auctioneer:''}, rows:s.rows||[] });
       renderArchivedSections();
     }
 
