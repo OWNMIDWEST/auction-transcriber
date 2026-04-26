@@ -417,17 +417,22 @@
 <!-- ════════════════════════ TAB 2: SALES DATA ════════════════════════ -->
 <div class="tab-page" id="tab-sales">
 
+  <!-- Auto-save restore banner (shown on page load if data recovered) -->
+  <div id="restoreBanner" style="display:none;align-items:center;gap:10px;padding:0.6rem 1rem;background:rgba(76,175,125,0.08);border:1px solid rgba(76,175,125,0.25);border-radius:10px;font-size:0.78rem;color:var(--success);margin-bottom:0.75rem"></div>
+
   <!-- Global backup bar -->
   <div class="backup-bar">
     <div class="backup-bar-left">
-      <span class="backup-bar-label">Site Backup</span>
-      <span class="backup-bar-desc">Export all auction blocks + transcript as a single JSON file you can restore later</span>
+      <span class="backup-bar-label">Site Backup &amp; Auto-Save</span>
+      <span class="backup-bar-desc">Your data saves automatically as you work. Export a JSON file anytime as a manual backup.</span>
     </div>
     <div class="backup-bar-right">
+      <span id="autoSaveIndicator" style="font-size:0.67rem;color:var(--success);opacity:0;transition:opacity 0.4s;white-space:nowrap"></span>
       <label class="restore-btn" title="Restore from a previously saved JSON backup">
         <input type="file" accept=".json" onchange="restoreFromJSON(this)" style="display:none" />
         ↑ Restore JSON
       </label>
+      <button class="backup-btn" onclick="exportAllExcel()" style="background:rgba(76,175,125,0.1);color:var(--success);border-color:rgba(76,175,125,0.4)">📊 Export All Auctions (Excel)</button>
       <button class="backup-btn" onclick="exportAllJSON()">↓ Backup All (JSON)</button>
     </div>
   </div>
@@ -781,6 +786,7 @@ function keepSales() {
   confirm.classList.add('show');
   setTimeout(()=>confirm.classList.remove('show'), 6000);
   setStat('done',`${count} sale${count!==1?'s':''} confirmed`);
+  autoSave();
 }
 
 // ══════════════════════════════════════════════════════
@@ -857,7 +863,7 @@ function updBlock(blockId, rowId, field, val) {
   const block = auctionBlocks.find(b=>b.blockId===blockId);
   if (!block) return;
   const row = block.rows.find(r=>r.id===rowId);
-  if (row) row[field] = val;
+  if (row) { row[field] = val; autoSave(); }
 }
 
 function delBlockRow(blockId, rowId) {
@@ -872,6 +878,7 @@ function addBlockRow(blockId) {
   if (!block) return;
   block.rows.push({id:idCtr++,lotId:'',winningBid:'',minBid:'',bidderNum:'',timestamp:'',notes:'',confidence:'high'});
   renderAuctionBlock(blockId);
+  autoSave();
   const wrap = document.getElementById('block-'+blockId);
   const inputs = wrap ? wrap.querySelectorAll('tbody tr:last-child input') : [];
   if (inputs[0]) inputs[0].focus();
@@ -884,6 +891,7 @@ function deleteBlock(blockId) {
   if (el) el.remove();
   updateTabBadge();
   if (!auctionBlocks.length) document.getElementById('salesEmptyMsg').style.display = 'block';
+  autoSave();
 }
 
 function updateTabBadge() {
@@ -954,6 +962,107 @@ function exportBlockCSV(blockId) {
   a.click(); URL.revokeObjectURL(a.href);
 }
 
+
+// ══════════════════════════════════════════════════════
+// COMBINED MULTI-AUCTION EXCEL EXPORT
+// ══════════════════════════════════════════════════════
+function exportAllExcel() {
+  if (!auctionBlocks.length) { alert('No auction data to export yet.'); return; }
+
+  const wb = XLSX.utils.book_new();
+  const ts = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+
+  // ── Sheet 1: Combined Summary ─────────────────────────────────────────
+  const summaryRows = [
+    ['COMBINED AUCTION SUMMARY','','','','',''],
+    ['Generated:',ts,'','Total Auctions:',auctionBlocks.length,''],
+    ['','','','','',''],
+    ['Auction Name','Date','Location','Auctioneer','Total Sales','Total Proceeds ($)']
+  ];
+  let grandTotal = 0;
+  let grandSales = 0;
+  auctionBlocks.forEach(block => {
+    const total = block.rows.reduce((s,r)=>s+(parseFloat(r.winningBid)||0),0);
+    grandTotal += total;
+    grandSales += block.rows.length;
+    summaryRows.push([
+      block.meta.name, block.meta.date, block.meta.location,
+      block.meta.auctioneer, block.rows.length, total
+    ]);
+  });
+  summaryRows.push(['','','','','','']);
+  summaryRows.push(['GRAND TOTAL','','','',grandSales,'$'+grandTotal.toFixed(2)]);
+
+  const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
+  wsSummary['!cols'] = [{wch:22},{wch:14},{wch:18},{wch:16},{wch:12},{wch:18}];
+  wsSummary['!merges'] = [{s:{r:0,c:0},e:{r:0,c:5}}];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+  // ── Sheet 2: All Sales Combined ───────────────────────────────────────
+  const allRows = [
+    ['ALL SALES — COMBINED','','','','','','',''],
+    ['','','','','','','',''],
+    ['Auction Name','Date','Lot / Sale ID','Winning Bid ($)','Min Bid ($)','Bidder Number','Timestamp','Notes']
+  ];
+  auctionBlocks.forEach(block => {
+    block.rows.forEach(r => {
+      allRows.push([
+        block.meta.name,
+        block.meta.date,
+        r.lotId,
+        r.winningBid ? parseFloat(r.winningBid) : '',
+        r.minBid     ? parseFloat(r.minBid)     : '',
+        r.bidderNum,
+        r.timestamp,
+        r.notes
+      ]);
+    });
+  });
+  const wsAll = XLSX.utils.aoa_to_sheet(allRows);
+  wsAll['!cols'] = [{wch:22},{wch:14},{wch:16},{wch:14},{wch:12},{wch:14},{wch:12},{wch:30}];
+  wsAll['!merges'] = [{s:{r:0,c:0},e:{r:0,c:7}}];
+  XLSX.utils.book_append_sheet(wb, wsAll, 'All Sales');
+
+  // ── One sheet per auction ─────────────────────────────────────────────
+  auctionBlocks.forEach((block, idx) => {
+    const {name,date,location,auctioneer} = block.meta;
+    const bids  = block.rows.map(r=>parseFloat(r.winningBid)||0);
+    const total = bids.reduce((a,b)=>a+b,0);
+    const valid = bids.filter(b=>b>0);
+    const sheetName = (name||'Auction').replace(/[^a-zA-Z0-9 _-]/g,'').slice(0,28) + (auctionBlocks.length>1?' '+(idx+1):'');
+
+    const wsData = [
+      ['AUCTION SALE RESULTS','','','',''],
+      ['Auction Name:',name,'','Date:',date],
+      ['Location:',location,'','Auctioneer:',auctioneer],
+      ['Total Sales:',block.rows.length,'','Total Proceeds:','$'+total.toFixed(2)],
+      ['High Bid:',valid.length?'$'+Math.max(...valid).toFixed(2):'—','','Low Bid:',valid.length?'$'+Math.min(...valid).toFixed(2):'—'],
+      ['','','','',''],
+      ['Lot / Sale ID','Winning Bid ($)','Min Bid ($)','Bidder Number','Timestamp','Notes'],
+      ...block.rows.map(r=>[r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.minBid?parseFloat(r.minBid):'',r.bidderNum,r.timestamp,r.notes]),
+      ['','','','','',''],
+      ['TOTAL','$'+total.toFixed(2),'','','','']
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [{wch:18},{wch:14},{wch:12},{wch:14},{wch:12},{wch:30}];
+    ws['!merges'] = [{s:{r:0,c:0},e:{r:0,c:4}}];
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  });
+
+  // ── Transcript sheet ──────────────────────────────────────────────────
+  if (txRows.length) {
+    const wsTx = XLSX.utils.aoa_to_sheet([
+      ['FULL TRANSCRIPT','',''],['','',''],
+      ['Timestamp','Speaker','Transcript'],
+      ...txRows.map(r=>[r.timestamp,r.speaker,r.text])
+    ]);
+    wsTx['!cols'] = [{wch:12},{wch:14},{wch:90}];
+    XLSX.utils.book_append_sheet(wb, wsTx, 'Transcript');
+  }
+
+  const dateStr = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `auctionscribe_all_auctions_${dateStr}.xlsx`);
+}
 
 // ══════════════════════════════════════════════════════
 // FULL SITE BACKUP / RESTORE (JSON)
@@ -1060,6 +1169,8 @@ function clearAll(){
   document.getElementById('transcribeBtn').disabled=true;
   document.getElementById('fileInput').value='';
   setStat('','Ready');
+  localStorage.removeItem(AS_KEY);
+  const rb=document.getElementById('restoreBanner'); if(rb) rb.style.display='none';
 }
 
 document.getElementById('auctionDate').valueAsDate = new Date();
@@ -1128,6 +1239,112 @@ function loadSavedKeys() {
   if (svc) selectService(svc);
 }
 loadSavedKeys();
+
+// ══════════════════════════════════════════════════════
+// AUTO-SAVE / AUTO-RESTORE (localStorage)
+// Silently saves all auction blocks + transcript on
+// every meaningful change. Restores on page load.
+// ══════════════════════════════════════════════════════
+const AS_KEY = 'as_autosave_v1';
+
+function autoSave() {
+  try {
+    const state = {
+      savedAt: new Date().toISOString(),
+      auctionBlocks,
+      txRows,
+      idCtr,
+      blockCtr,
+      auctionMeta: {
+        name:       document.getElementById('auctionName').value,
+        date:       document.getElementById('auctionDate').value,
+        location:   document.getElementById('auctionLocation').value,
+        auctioneer: document.getElementById('auctioneer').value
+      }
+    };
+    localStorage.setItem(AS_KEY, JSON.stringify(state));
+    showSaveIndicator();
+  } catch(e) {
+    // localStorage full or unavailable — silently skip
+  }
+}
+
+function autoRestore() {
+  try {
+    const raw = localStorage.getItem(AS_KEY);
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    if (!state || !Array.isArray(state.auctionBlocks)) return;
+
+    // Restore counters
+    if (state.idCtr)    idCtr    = state.idCtr;
+    if (state.blockCtr) blockCtr = state.blockCtr;
+
+    // Restore transcript
+    if (Array.isArray(state.txRows) && state.txRows.length) {
+      txRows = state.txRows;
+      renderTxBox();
+      document.getElementById('rowCount').textContent = txRows.length;
+      document.getElementById('exportTranscriptBtn').disabled = false;
+      document.getElementById('extractBtn').disabled = false;
+    }
+
+    // Restore auction blocks
+    state.auctionBlocks.forEach(block => {
+      auctionBlocks.push(block);
+      renderAuctionBlock(block.blockId);
+    });
+    updateTabBadge();
+
+    // Restore meta fields
+    const m = state.auctionMeta || {};
+    if (m.name)       document.getElementById('auctionName').value      = m.name;
+    if (m.date)       document.getElementById('auctionDate').value       = m.date;
+    if (m.location)   document.getElementById('auctionLocation').value   = m.location;
+    if (m.auctioneer) document.getElementById('auctioneer').value        = m.auctioneer;
+
+    if (state.auctionBlocks.length || (state.txRows && state.txRows.length)) {
+      showRestoreBanner(state.savedAt);
+    }
+  } catch(e) {
+    // Corrupted save — ignore
+    localStorage.removeItem(AS_KEY);
+  }
+}
+
+function showSaveIndicator() {
+  const el = document.getElementById('autoSaveIndicator');
+  if (!el) return;
+  el.textContent = 'Saved ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.style.opacity = '0', 3000);
+}
+
+function showRestoreBanner(savedAt) {
+  const el = document.getElementById('restoreBanner');
+  if (!el) return;
+  const d = savedAt ? new Date(savedAt).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : 'previous session';
+  el.innerHTML = `↩ Session restored from ${d} &nbsp;<button onclick="clearAutoSave()" style="background:transparent;border:none;color:var(--danger);font-size:0.7rem;cursor:pointer;font-family:'DM Sans',sans-serif">Clear restored data</button>`;
+  el.style.display = 'flex';
+}
+
+function clearAutoSave() {
+  if (!confirm('Clear all restored session data? This removes all auction blocks and transcript from this page.')) return;
+  localStorage.removeItem(AS_KEY);
+  clearAll();
+  const el = document.getElementById('restoreBanner');
+  if (el) el.style.display = 'none';
+}
+
+// Trigger auto-save whenever auction meta fields change
+['auctionName','auctionDate','auctionLocation','auctioneer'].forEach(id => {
+  document.getElementById(id).addEventListener('input',  autoSave);
+  document.getElementById(id).addEventListener('change', autoSave);
+});
+
+// Restore on load
+autoRestore();
 
 </script>
 </body>
