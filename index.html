@@ -331,13 +331,13 @@
       <!-- Controls -->
       <div class="panel">
         <div class="panel-title">Mode</div>
+        <div class="status-bar"><div class="status-dot" id="statusDot"></div><span id="statusText">Ready</span></div>
         <div class="mode-toggle">
           <button class="mode-btn active" id="btn-live" onclick="setMode('live')">🎙️ Live Mic</button>
           <button class="mode-btn" id="btn-file" onclick="setMode('file')">📁 Upload File</button>
         </div>
 
         <div id="live-controls">
-          <div class="status-bar"><div class="status-dot" id="statusDot"></div><span id="statusText">Ready</span></div>
           <div class="alert alert-err" id="alertBox"></div>
           <button class="btn btn-primary" id="startBtn" onclick="startLive()">🎙️ Start Recording</button>
           <button class="btn btn-danger" id="stopBtn" onclick="stopLive()" disabled>⏹ Stop</button>
