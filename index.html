@@ -258,11 +258,23 @@
           </button>
         </div>
         <label>Transcription API Key</label>
-        <input type="password" id="apiKey" placeholder="dg_xxxxxxxxxxxxxxxxxxxx" />
+        <input type="password" id="apiKey" placeholder="dg_xxxxxxxxxxxxxxxxxxxx" oninput="conditionalSave('apiKey','rememberTx')" />
+        <div style="display:flex;align-items:center;gap:7px;margin-top:-0.5rem;margin-bottom:0.85rem">
+          <input type="checkbox" id="rememberTx" onchange="toggleRemember('apiKey','rememberTx','as_tx_key')" style="width:auto;margin:0;accent-color:var(--accent)" />
+          <span style="font-size:0.68rem;color:var(--muted)">Remember on this device</span>
+          <button onclick="forgetKey('apiKey','rememberTx','as_tx_key')" style="margin-left:auto;font-size:0.62rem;color:var(--danger);background:transparent;border:none;cursor:pointer;padding:0">forget</button>
+        </div>
+
         <label>Claude API Key <span style="color:var(--accent);font-size:0.65rem">(sale extraction)</span></label>
-        <input type="password" id="claudeKey" placeholder="sk-ant-xxxxxxxxxxxxxxxxxxxx" />
-        <div class="key-note">Get a free key at console.anthropic.com — extracts Lot IDs, bids &amp; bidder numbers from your transcript.</div>
-        <div style="font-size:0.67rem;color:var(--muted)">🔒 Keys stay in your browser only</div>
+        <input type="password" id="claudeKey" placeholder="sk-ant-xxxxxxxxxxxxxxxxxxxx" oninput="conditionalSave('claudeKey','rememberClaude')" />
+        <div style="display:flex;align-items:center;gap:7px;margin-top:-0.5rem;margin-bottom:0.5rem">
+          <input type="checkbox" id="rememberClaude" onchange="toggleRemember('claudeKey','rememberClaude','as_claude_key')" style="width:auto;margin:0;accent-color:var(--accent)" />
+          <span style="font-size:0.68rem;color:var(--muted)">Remember on this device</span>
+          <button onclick="forgetKey('claudeKey','rememberClaude','as_claude_key')" style="margin-left:auto;font-size:0.62rem;color:var(--danger);background:transparent;border:none;cursor:pointer;padding:0">forget</button>
+        </div>
+
+        <div class="key-note" style="margin-top:0.35rem">Get Claude key free at console.anthropic.com — extracts Lot IDs, bids &amp; bidder numbers.</div>
+        <div style="font-size:0.67rem;color:var(--muted);margin-top:0.3rem">🔒 Saved keys stored only on this device in your browser</div>
       </div>
 
       <!-- Auction Details -->
@@ -880,6 +892,52 @@ function clearAll(){
 }
 
 document.getElementById('auctionDate').valueAsDate = new Date();
+
+// ══════════════════════════════════════════════════════
+// KEY PERSISTENCE (localStorage)
+// ══════════════════════════════════════════════════════
+function toggleRemember(inputId, checkboxId, storageKey) {
+  const checked = document.getElementById(checkboxId).checked;
+  const val = document.getElementById(inputId).value.trim();
+  if (checked && val) {
+    localStorage.setItem(storageKey, val);
+    localStorage.setItem(storageKey+'_remember', '1');
+  } else {
+    localStorage.removeItem(storageKey);
+    localStorage.removeItem(storageKey+'_remember');
+  }
+}
+
+function conditionalSave(inputId, checkboxId) {
+  if (document.getElementById(checkboxId)?.checked) {
+    const storageKey = checkboxId==='rememberTx' ? 'as_tx_key' : 'as_claude_key';
+    localStorage.setItem(storageKey, document.getElementById(inputId).value);
+  }
+}
+
+function forgetKey(inputId, checkboxId, storageKey) {
+  localStorage.removeItem(storageKey);
+  localStorage.removeItem(storageKey+'_remember');
+  document.getElementById(inputId).value = '';
+  document.getElementById(checkboxId).checked = false;
+}
+
+function loadSavedKeys() {
+  const txKey = localStorage.getItem('as_tx_key');
+  const txRem = localStorage.getItem('as_tx_key_remember');
+  if (txKey && txRem) {
+    document.getElementById('apiKey').value = txKey;
+    document.getElementById('rememberTx').checked = true;
+  }
+  const clKey = localStorage.getItem('as_claude_key');
+  const clRem = localStorage.getItem('as_claude_key_remember');
+  if (clKey && clRem) {
+    document.getElementById('claudeKey').value = clKey;
+    document.getElementById('rememberClaude').checked = true;
+  }
+}
+loadSavedKeys();
+
 </script>
 </body>
 </html>
