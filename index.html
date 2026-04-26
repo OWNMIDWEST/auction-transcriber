@@ -203,6 +203,17 @@
   .summary-value.green { color: var(--success); }
   .summary-value.yellow { color: var(--accent); }
 
+  /* Backup bar */
+  .backup-bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 0.8rem 1.1rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  .backup-bar-left { display: flex; flex-direction: column; gap: 3px; }
+  .backup-bar-label { font-size: 0.72rem; font-weight: 600; color: var(--text); letter-spacing: 0.05em; }
+  .backup-bar-desc { font-size: 0.67rem; color: var(--muted); }
+  .backup-bar-right { display: flex; gap: 8px; align-items: center; }
+  .backup-btn { padding: 0.45rem 1rem; border-radius: 7px; border: 1px solid rgba(232,196,74,0.5); background: rgba(232,196,74,0.08); color: var(--accent); font-family: 'DM Sans', sans-serif; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .backup-btn:hover { background: rgba(232,196,74,0.18); }
+  .restore-btn { padding: 0.45rem 1rem; border-radius: 7px; border: 1px solid var(--border); background: transparent; color: var(--muted); font-family: 'DM Sans', sans-serif; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; }
+  .restore-btn:hover { border-color: var(--deepgram); color: var(--deepgram); }
+
   /* Auction block — one per Keep */
   .auction-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; }
   .sah-outer { border-bottom: 1px solid var(--border); }
@@ -405,6 +416,22 @@
 
 <!-- ════════════════════════ TAB 2: SALES DATA ════════════════════════ -->
 <div class="tab-page" id="tab-sales">
+
+  <!-- Global backup bar -->
+  <div class="backup-bar">
+    <div class="backup-bar-left">
+      <span class="backup-bar-label">Site Backup</span>
+      <span class="backup-bar-desc">Export all auction blocks + transcript as a single JSON file you can restore later</span>
+    </div>
+    <div class="backup-bar-right">
+      <label class="restore-btn" title="Restore from a previously saved JSON backup">
+        <input type="file" accept=".json" onchange="restoreFromJSON(this)" style="display:none" />
+        ↑ Restore JSON
+      </label>
+      <button class="backup-btn" onclick="exportAllJSON()">↓ Backup All (JSON)</button>
+    </div>
+  </div>
+
   <div id="auctionBlocksWrap">
     <div class="empty-grid" id="salesEmptyMsg" style="padding:3rem 1rem;color:var(--muted);text-align:center;font-size:0.85rem;line-height:2">
       No confirmed sales yet.<br>
@@ -927,6 +954,73 @@ function exportBlockCSV(blockId) {
   a.click(); URL.revokeObjectURL(a.href);
 }
 
+
+// ══════════════════════════════════════════════════════
+// FULL SITE BACKUP / RESTORE (JSON)
+// ══════════════════════════════════════════════════════
+function exportAllJSON() {
+  const backup = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    auctionBlocks: auctionBlocks,
+    transcriptRows: txRows,
+    auctionMeta: {
+      name:       document.getElementById('auctionName').value,
+      date:       document.getElementById('auctionDate').value,
+      location:   document.getElementById('auctionLocation').value,
+      auctioneer: document.getElementById('auctioneer').value
+    }
+  };
+  const json = JSON.stringify(backup, null, 2);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], {type:'application/json'}));
+  const ts = new Date().toISOString().slice(0,10);
+  a.download = `auctionscribe_backup_${ts}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function restoreFromJSON(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const backup = JSON.parse(e.target.result);
+      if (!backup.version || !Array.isArray(backup.auctionBlocks)) {
+        alert('Invalid backup file — please select a valid AuctionScribe JSON backup.');
+        return;
+      }
+      if (!confirm(`This will ADD ${backup.auctionBlocks.length} auction block(s) and ${(backup.transcriptRows||[]).length} transcript line(s) from the backup. Existing data is kept. Continue?`)) return;
+
+      // Restore auction blocks — remap IDs to avoid collisions
+      backup.auctionBlocks.forEach(block => {
+        const newBlockId = blockCtr++;
+        const newRows = (block.rows || []).map(r => ({...r, id: idCtr++}));
+        auctionBlocks.push({ blockId: newBlockId, meta: block.meta, rows: newRows });
+        renderAuctionBlock(newBlockId);
+      });
+
+      // Restore transcript rows (append)
+      (backup.transcriptRows || []).forEach(r => txRows.push(r));
+      if (txRows.length) { renderTxBox(); document.getElementById('rowCount').textContent = txRows.length; document.getElementById('exportTranscriptBtn').disabled = false; }
+
+      // Restore auction meta fields if currently empty
+      const m = backup.auctionMeta || {};
+      if (m.name     && !document.getElementById('auctionName').value)      document.getElementById('auctionName').value      = m.name;
+      if (m.date     && !document.getElementById('auctionDate').value)       document.getElementById('auctionDate').value       = m.date;
+      if (m.location && !document.getElementById('auctionLocation').value)   document.getElementById('auctionLocation').value   = m.location;
+      if (m.auctioneer && !document.getElementById('auctioneer').value)      document.getElementById('auctioneer').value        = m.auctioneer;
+
+      updateTabBadge();
+      input.value = '';
+      alert(`Restored ${backup.auctionBlocks.length} auction block(s) successfully.`);
+    } catch(err) {
+      alert('Could not read backup file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
 
 function exportTranscriptExcel(){
   if(!txRows.length) return;
