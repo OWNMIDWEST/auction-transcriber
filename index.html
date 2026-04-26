@@ -284,9 +284,9 @@
   .keep-confirm.show { display: flex; }
 
   /* ── Meta grid ── */
-  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem 0.65rem; }
-  .meta-grid label { margin-bottom: 0.2rem; }
-  .meta-grid input { margin-bottom: 0; }
+  .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.25rem 0.5rem; }
+  .meta-grid label { margin-bottom: 0.1rem; font-size:0.6rem; }
+  .meta-grid input { margin-bottom: 0; padding:0.3rem 0.55rem; font-size:0.72rem; }
   .key-note { font-size: 0.67rem; color: var(--muted); line-height: 1.5; margin-top: -0.5rem; margin-bottom: 0.8rem; }
 
   @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } body { padding: 1rem; } .summary-bar { grid-template-columns: 1fr 1fr; } }
@@ -345,18 +345,17 @@
       </div>
 
       <!-- Auction Details -->
-      <div class="panel">
-        <div class="panel-title">Auction Details</div>
+      <div class="panel" style="padding:0.75rem">
+        <div class="panel-title" style="margin-bottom:0.5rem">Auction Details</div>
         <div class="meta-grid">
           <div><label>Auction Name</label><input type="text" id="auctionName" placeholder="Estate Sale #42" /></div>
           <div><label>Date</label><input type="date" id="auctionDate" /></div>
           <div><label>Location</label><input type="text" id="auctionLocation" placeholder="Miami, FL" /></div>
           <div><label>Auctioneer</label><input type="text" id="auctioneer" placeholder="Name" /></div>
         </div>
-        <label style="margin-top:0.4rem">Keyterms <span style="color:var(--muted);font-size:0.62rem;text-transform:none;letter-spacing:0">(Deepgram boost — comma separated)</span></label>
-        <textarea id="keyterms" rows="2" placeholder="e.g. Lot, Item, Bidder, Johnson Estate, paddle, sold, going once..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.76rem;padding:0.5rem 0.7rem;outline:none;resize:vertical;transition:border-color 0.15s;margin-bottom:0.25rem" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" oninput="saveKeyterms()"></textarea>
-        <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5">Words Deepgram will prioritize recognizing. Add lot prefixes, bidder terms, item names specific to your auctions. Saved automatically.</div>
-        <button class="btn" id="newAuctionBtn" onclick="newAuction()" style="border:2px solid var(--accent);background:rgba(232,196,74,0.1);color:var(--accent);font-weight:700;font-size:0.95rem;padding:0.8rem;letter-spacing:0.03em">＋ New Auction</button>
+        <label style="margin-top:0.35rem;font-size:0.6rem">Keyterms <span style="color:var(--muted);text-transform:none;letter-spacing:0">(Deepgram boost — comma separated)</span></label>
+        <textarea id="keyterms" rows="1" placeholder="Lot, Item, Bidder, sold, paddle…" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.72rem;padding:0.3rem 0.55rem;outline:none;resize:none;transition:border-color 0.15s;margin-bottom:0.5rem" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" oninput="saveKeyterms()"></textarea>
+        <button class="btn" id="newAuctionBtn" onclick="newAuction()" style="border:1.5px solid var(--accent);background:rgba(232,196,74,0.09);color:var(--accent);font-weight:600;font-size:0.82rem;padding:0.5rem;margin-bottom:0">＋ New Auction</button>
       </div>
 
       <!-- Controls -->
