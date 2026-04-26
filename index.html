@@ -498,21 +498,20 @@ function setMode(m) {
 // ══════════════════════════════════════════════════════
 // LIVE RECORDING
 // ══════════════════════════════════════════════════════
-// Build Deepgram URL with nova-3, keyterms boost, and best-quality params
-function buildDeepgramURL() {
+// Build Deepgram URL — protocol: 'wss' for live, 'https' for file upload
+function buildDeepgramURL(protocol) {
   const base = 'api.deepgram.com/v1/listen';
   const params = new URLSearchParams({
-    model: 'nova-3',
-    language: 'en-US',
+    model:        'nova-2',      // nova-2: proven reliable for auction audio
+    language:     'en-US',
     smart_format: 'true',
-    diarize: 'true',
-    punctuate: 'true',
-    utterances: 'true',
+    diarize:      'true',
+    punctuate:    'true',
+    utterances:   'true',
     filler_words: 'false',
-    numerals: 'true',          // convert spoken numbers to digits
   });
 
-  // Add keyterms boost
+  // Keyterms boost (Deepgram prioritizes these words)
   const raw = (document.getElementById('keyterms')?.value || '').trim();
   if (raw) {
     raw.split(',').map(k => k.trim()).filter(Boolean).forEach(k => {
@@ -520,8 +519,8 @@ function buildDeepgramURL() {
     });
   }
 
-  const protocol = arguments[0] === 'wss' ? 'wss' : 'https';
-  return `${protocol}://${base}?${params.toString()}`;
+  const proto = protocol === 'wss' ? 'wss' : 'https';
+  return `${proto}://${base}?${params.toString()}`;
 }
 
 async function startLive() {
