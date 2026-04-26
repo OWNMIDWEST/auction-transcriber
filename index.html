@@ -638,24 +638,39 @@ async function runExtraction() {
 
   const transcript = txRows.map(r=>`[${r.timestamp}] ${r.speaker}: ${r.text}`).join('\n');
 
-  const systemPrompt = `You are an expert auction data extractor. Read an auction transcript and identify every COMPLETED sale.
+  const systemPrompt = `You are an expert auction data extractor and your job is critically important. You must read every single line of the transcript with extreme care and thoroughness. Take your time. Do not rush. Missing a sale is a serious error — it is far better to include an uncertain sale than to skip it.
 
-For each completed sale extract:
-- lot_id: The lot number, sale number, auction ID, or item identifier (e.g. "Lot 42", "Item 7", "#45"). Include the label. IMPORTANT: Convert any word numbers to digits — "forty two" becomes "42", "lot twenty" becomes "Lot 20", "item seven" becomes "Item 7".
-- winning_bid: Final sold dollar amount as a number only (e.g. 500, 1250.50). No $ symbol. Convert word numbers to digits — "five hundred" = 500, "twelve fifty" = 1250, "fifteen thousand" = 15000. Null if not found.
-- min_bid: The minimum or opening bid/starting bid announced for this lot, as a number only. Convert word numbers to digits. Null if no minimum bid was mentioned.
-- bidder_number: Winning bidder paddle/card/bidder number as a string (e.g. "7", "142", "B-34"). Null if not found.
-- timestamp: Transcript timestamp when the sale was finalized.
-- notes: Short context — item description if mentioned, or why a value was ambiguous.
-- confidence: "high" if all three key fields (lot_id, winning_bid, bidder_number) are clearly stated. "low" if any was inferred or unclear.
+TASK: Scan the ENTIRE transcript line by line and identify every completed sale or likely completed sale.
 
-Look for sale-closing cues: "SOLD", "going once going twice sold", "sold to bidder", "congratulations to", "next lot".
-Look for lot IDs: "lot number", "item number", "sale number", "#", "number".
-Look for bid amounts: dollar amounts spoken near a sale close.
-Look for bidder IDs: "bidder number", "paddle", "to number", "to the gentleman/lady at", "card number".
+IMPORTANT — AUCTION CHANT STYLE: Many auctioneers do NOT say "sold" clearly. Instead a sale ends when:
+- The auctioneer calls a final number and then moves on to a new lot
+- A bidder number is called out after a series of rising bids
+- The pace suddenly changes or a new item/lot is introduced
+- Words like "congratulations", "yours", "you got it", "next", "moving on", "going to", "last call" appear
+- A number is repeated 2-3 times with no higher counter-bid following (e.g. "ninety, ninety, ninety" = likely sold at 90)
+- Any variation of: sold, sell, selling, gone, done, awarded, winner, winning bid, final bid, last bid
 
-When a field is genuinely absent, set it to null. Do NOT fabricate values.
-Return ONLY a valid JSON array. No markdown, no backticks, no explanation. Just raw JSON. Empty array if no sales found: []`;
+DO NOT require the word "sold" to appear. Infer completed sales from context and the natural flow of bidding.
+
+For each completed or likely completed sale, extract:
+- lot_id: Lot number, sale number, item number, or any identifier. Convert ALL word numbers to digits — "forty two" = "42", "lot twenty" = "Lot 20". If no lot ID is found, use null but still include the sale.
+- winning_bid: The final price as a number only. Convert word numbers — "five hundred" = 500, "twelve fifty" = 1250, "twenty nine thousand" = 29000, "ninety" in bidding context = 90 or 9000 depending on scale. No $ symbol. Null only if truly impossible to determine.
+- min_bid: Opening or minimum bid as a number only. Null if not mentioned.
+- bidder_number: The winning bidder's paddle, card, or number. Convert word numbers to digits. Null if not found.
+- timestamp: The transcript timestamp at or near when the sale concluded.
+- notes: Describe the item if mentioned. Explain your reasoning if the sale was inferred rather than explicit. Note if the bid scale was ambiguous (e.g. "ninety could mean $90 or $9,000").
+- confidence: "high" only if lot_id, winning_bid, AND bidder_number are all clearly stated. "low" if any field was inferred, ambiguous, or missing — but STILL include the row.
+
+METHODOLOGY — follow these steps carefully:
+1. Read through the entire transcript once to understand the overall bidding scale and auctioneer's style.
+2. Go through again line by line. Mark every point where bidding activity appears to conclude.
+3. For each conclusion point, gather the surrounding context (lot ID, final bid, bidder) from nearby lines.
+4. Include every sale you find, even if confidence is low. It is better to have a row the user can delete than to miss a real sale.
+
+When a field is genuinely impossible to determine, set it to null. Do NOT fabricate values — but do make reasonable inferences and note them in the notes field.
+
+Return ONLY a valid JSON array. No markdown, no backticks, no preamble, no explanation. Just the raw JSON array.
+If truly no sales found: []`;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages',{
@@ -663,9 +678,9 @@ Return ONLY a valid JSON array. No markdown, no backticks, no explanation. Just 
       headers:{'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
-        max_tokens:4096,
+        max_tokens:8000,
         system:systemPrompt,
-        messages:[{role:'user',content:`Extract all completed sales from this auction transcript:\n\n${transcript}`}]
+        messages:[{role:'user',content:`Please read this entire auction transcript carefully and thoroughly, line by line. Take your time — thoroughness is more important than speed. Extract every completed or likely completed sale. When in doubt, include it with confidence 'low' rather than skipping it. Here is the transcript:\n\n${transcript}`}]
       })
     });
     if(!res.ok){const e=await res.json();throw new Error(e.error?.message||`API error ${res.status}`);}
