@@ -237,6 +237,13 @@
   .ash-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .ash-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
+  /* Session stream — one header style used for ALL three stages */
+  #sessionStream { display: flex; flex-direction: column; gap: 1rem; }
+  .session-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .session-header { padding: 0.75rem 1.1rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+  .session-header-title { font-size: 0.82rem; color: var(--text); line-height: 1.5; }
+  .session-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+
   /* Auction block — one per Keep */
   .auction-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; }
   .sah-outer { border-bottom: 1px solid var(--border); }
@@ -379,8 +386,8 @@
         </div>
 
         <div class="divider"></div>
+        <button class="btn" id="newAuctionBtn" onclick="newAuction()" style="border:1.5px solid var(--accent);background:rgba(232,196,74,0.08);color:var(--accent);font-weight:600;font-size:0.9rem">＋ New Auction</button>
         <button class="btn btn-primary" id="extractBtn" onclick="runExtraction()" disabled>🤖 Extract Sale Data with AI</button>
-        <button class="btn" id="newAuctionBtn" onclick="newAuction()" style="border:1.5px solid var(--accent);background:rgba(232,196,74,0.08);color:var(--accent);font-weight:600">＋ New Auction</button>
         <button class="btn btn-success" id="exportTranscriptBtn" onclick="exportTranscriptExcel()" disabled>📊 Download Transcript Excel</button>
         <button class="btn btn-ghost" onclick="clearAll()">🗑 Clear All</button>
       </div>
@@ -389,20 +396,11 @@
     <!-- RIGHT COLUMN -->
     <div class="right-col">
 
-      <!-- Transcript stream — multi-section -->
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
-        <div class="panel-header">
-          <div class="panel-header-title">Transcript · <span id="rowCount">0</span> lines</div>
-          <div style="display:flex;align-items:center;gap:8px">
-            <button onclick="clearTranscript()" style="padding:0.25rem 0.65rem;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:0.68rem;cursor:pointer;transition:all 0.15s" onmouseover="this.style.borderColor='var(--danger)';this.style.color='var(--danger)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">✕ Clear</button>
-            <div id="modeBadge" class="badge badge-live">● Live</div>
-          </div>
-        </div>
-        <!-- Archived transcript sections (previous auctions) -->
-        <div id="archivedSections"></div>
-        <!-- Current active transcript -->
-        <div class="transcript-box" id="transcriptBox">
-          <div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>
+      <!-- All session sections stack here — transcripts, extractions, each with consistent header -->
+      <div id="sessionStream">
+        <div class="placeholder" id="sessionPlaceholder" style="padding:3rem 1rem;text-align:center;color:var(--muted);font-size:0.85rem;line-height:2;background:var(--surface);border:1px solid var(--border);border-radius:12px">
+          Fill in Auction Details on the left, then click<br>
+          <strong style="color:var(--accent)">＋ New Auction</strong> to begin a session.
         </div>
       </div>
 
@@ -410,29 +408,6 @@
       <div class="extract-bar" id="extractBar">
         <div class="extract-spinner"></div>
         <div class="extract-text"><strong>Claude AI</strong> is reading the transcript and identifying Lot IDs, winning bids, and bidder numbers…</div>
-      </div>
-
-      <!-- Archived draft sections from previous auctions in this session -->
-      <div id="draftArchive" style="display:flex;flex-direction:column;gap:0.75rem"></div>
-
-      <!-- ── DRAFT EXTRACTION GRID ── -->
-      <div class="draft-section" id="draftSection" style="display:none">
-        <div id="draftHeaderWrap"></div>
-        <div style="padding:0.5rem 1.1rem;background:rgba(232,132,74,0.05);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-          <div style="font-size:0.68rem;color:var(--muted)">
-            <span style="color:var(--uncertain)">■</span> orange = AI best guess · click any cell to correct it ·
-            when ready click <strong style="color:var(--success)">Keep</strong>
-          </div>
-          <div class="draft-actions">
-            <button class="add-row-btn" onclick="addDraftRow()">+ Add Row</button>
-            <button class="rerun-btn" onclick="runExtraction()">↺ Re-run AI</button>
-            <button class="keep-btn" id="keepBtn" onclick="keepSales()">✓ Keep</button>
-            <button class="delete-draft-btn" onclick="deleteDraft()" title="Discard all extracted sales">✕ Delete</button>
-          </div>
-        </div>
-        <div class="tbl-wrap" id="draftTableWrap">
-          <div class="empty-grid">No sales found.</div>
-        </div>
       </div>
 
       <!-- Keep confirmation message -->
@@ -486,7 +461,8 @@ let inputMode = 'live';
 let mediaRecorder = null;
 let wsocket = null;
 let txRows = [];         // current active transcript lines
-let txSections = [];     // archived transcript sections [{name, date, rows}]
+let activeMeta = null;   // meta for current active session {name,date,location,auctioneer,id}
+let sessions = [];       // completed sessions [{meta, txRows, draftRows}]
 let draftRows = [];      // AI extracted — under review
 let auctionBlocks = [];  // each kept batch = { blockId, meta, rows[] }
 let selFile = null;
@@ -711,6 +687,7 @@ async function doAssemblyAI(key) {
 // TRANSCRIPT
 // ══════════════════════════════════════════════════════
 function addTxRow(sec, spk, text) {
+  if (!activeMeta) { newAuction(); } // auto-start if user forgot to click New Auction
   txRows.push({timestamp:fmtTime(sec),speaker:spk,text});
   renderTxBox();
   document.getElementById('exportTranscriptBtn').disabled=false;
@@ -812,10 +789,31 @@ If truly no sales found: []`;
       confidence:item.confidence||'high'
     }));
 
+    // Remove any existing draft block for this session
+    const existingDraft = document.getElementById('draftblock-'+(activeMeta?.id||0));
+    if (existingDraft) existingDraft.remove();
+
+    // Build extraction block in the stream
+    const meta = activeMeta || getFormMeta();
+    const stream = document.getElementById('sessionStream');
+    const draftBlock = document.createElement('div');
+    draftBlock.id = 'draftblock-' + meta.id;
+    draftBlock.className = 'session-block';
+    draftBlock.innerHTML = sectionHeader('AI Extraction', meta,
+      `<button class="add-row-btn" onclick="addDraftRow()">+ Add Row</button>
+       <button class="rerun-btn" onclick="runExtraction()">↺ Re-run AI</button>
+       <button class="keep-btn" onclick="keepSales()">✓ Keep</button>
+       <button class="delete-draft-btn" onclick="deleteDraftBlock(${meta.id})">✕ Delete</button>`) +
+      `<div style="padding:0.4rem 0.9rem;font-size:0.67rem;color:var(--muted);border-bottom:1px solid var(--border);background:rgba(232,132,74,0.04)">
+        <span style="color:var(--uncertain)">■</span> orange = AI best guess · click any cell to correct · click <strong style="color:var(--success)">Keep</strong> to confirm
+       </div>
+       <div class="tbl-wrap" id="draftTableWrap"></div>`;
+    stream.appendChild(draftBlock);
+
     renderDraftTable();
-    document.getElementById('draftSection').style.display='block';
     document.getElementById('extractBar').classList.remove('show');
-    setStat('done',`${extracted.length} sale${extracted.length!==1?'s':''} found — review below then click Keep`);
+    draftBlock.scrollIntoView({behavior:'smooth',block:'start'});
+    setStat('done',`${extracted.length} sale${extracted.length!==1?'s':''} found — review then click Keep`);
     autoSave();
 
   } catch(err) {
@@ -874,9 +872,30 @@ function delDraftRow(id) { draftRows=draftRows.filter(r=>r.id!==id); renderDraft
 
 function deleteDraft() {
   draftRows = [];
-  document.getElementById('draftSection').style.display='none';
+  if (activeMeta) {
+    const b = document.getElementById('draftblock-'+activeMeta.id);
+    if (b) b.remove();
+  }
   document.getElementById('keepConfirm').classList.remove('show');
   setStat('done','Draft deleted — transcript still available');
+  autoSave();
+}
+
+function deleteDraftBlock(metaId) {
+  draftRows = [];
+  const b = document.getElementById('draftblock-'+metaId);
+  if (b) b.remove();
+  autoSave();
+}
+
+function clearCurrentTranscript() {
+  if (txRows.length && !confirm('Clear this transcript? This cannot be undone.')) return;
+  txRows = [];
+  const box = document.getElementById('transcriptBox');
+  if (box) box.innerHTML = '<div class="placeholder">Start recording or upload a file to begin.</div>';
+  document.getElementById('rowCount').textContent = '0';
+  document.getElementById('exportTranscriptBtn').disabled = true;
+  document.getElementById('extractBtn').disabled = true;
   autoSave();
 }
 
@@ -895,12 +914,7 @@ function keepSales() {
   if (!draftRows.length) return;
 
   const blockId = blockCtr++;
-  const meta = {
-    name:     document.getElementById('auctionName').value     || 'Auction',
-    date:     document.getElementById('auctionDate').value     || '',
-    location: document.getElementById('auctionLocation').value || '',
-    auctioneer: document.getElementById('auctioneer').value    || ''
-  };
+  const meta = activeMeta || getFormMeta();
   const rows = draftRows.map(r => ({...r, id: idCtr++}));
   auctionBlocks.push({ blockId, meta, rows });
 
@@ -954,17 +968,15 @@ function renderAuctionBlock(blockId) {
     <td><button class="del-btn" onclick="delBlockRow(${blockId},${r.id})">x</button></td>
   </tr>`).join('');
 
-  const blockActionsHTML = `
-    <div class="ash-actions">
-      <button class="action-btn action-btn-add" onclick="addBlockRow(${blockId})">+ Add Row</button>
-      <button class="action-btn action-btn-export" onclick="exportBlockExcel(${blockId})">Excel</button>
-      <button class="action-btn action-btn-csv" onclick="exportBlockCSV(${blockId})">CSV</button>
-      <button class="action-btn action-btn-clear" onclick="deleteBlock(${blockId})">Delete</button>
-    </div>`;
+  const blockActionsHTML =
+    `<button class="action-btn action-btn-add" onclick="addBlockRow(${blockId})">+ Add Row</button>
+     <button class="action-btn action-btn-export" onclick="exportBlockExcel(${blockId})">Excel</button>
+     <button class="action-btn action-btn-csv" onclick="exportBlockCSV(${blockId})">CSV</button>
+     <button class="action-btn action-btn-clear" onclick="deleteBlock(${blockId})">Delete</button>`;
 
   wrap.innerHTML = `
     <div class="sah-outer">
-      ${auctionHeaderHTML(m, blockActionsHTML)}
+      ${sectionHeader('Confirmed Sales', m, blockActionsHTML)}
       <div class="block-summary">
         <div class="block-stat"><div class="block-stat-label">Sales</div><div class="block-stat-val yellow">${block.rows.length}</div></div>
         <div class="block-stat"><div class="block-stat-label">Total Proceeds</div><div class="block-stat-val green">$${total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}</div></div>
@@ -1280,9 +1292,8 @@ function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function ea(s){return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
 function clearAll(){
-  txRows=[];draftRows=[];txSections=[];auctionBlocks=[];idCtr=1;blockCtr=1;
-  if(document.getElementById('archivedSections')) document.getElementById('archivedSections').innerHTML='';
-  if(document.getElementById('draftArchive')) document.getElementById('draftArchive').innerHTML='';
+  txRows=[];draftRows=[];activeMeta=null;auctionBlocks=[];idCtr=1;blockCtr=1;
+  const ss=document.getElementById('sessionStream'); if(ss){ ss.innerHTML=''; const ph=document.createElement('div'); ph.id='sessionPlaceholder'; ph.className='placeholder'; ph.style.cssText='padding:3rem 1rem;text-align:center;color:var(--muted);font-size:0.85rem;line-height:2;background:var(--surface);border:1px solid var(--border);border-radius:12px'; ph.innerHTML='Fill in Auction Details on the left, then click<br><strong style="color:var(--accent)">＋ New Auction</strong> to begin a session.'; ss.appendChild(ph); }
   document.getElementById('auctionBlocksWrap').innerHTML='<div class="empty-grid" id="salesEmptyMsg" style="padding:3rem 1rem;color:var(--muted);text-align:center;font-size:0.85rem;line-height:2">No confirmed sales yet.<br>Go to <strong style="color:var(--accent)">Transcribe</strong> → transcribe audio → extract with AI → review → click <strong style="color:var(--success)">Keep</strong>.</div>';
   document.getElementById('transcriptBox').innerHTML='<div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>';
   document.getElementById('draftSection').style.display='none';
@@ -1302,121 +1313,67 @@ function clearAll(){
 document.getElementById('auctionDate').valueAsDate = new Date();
 
 // ══════════════════════════════════════════════════════
-// SHARED AUCTION HEADER BUILDER
-// Used identically in transcript archive, draft archive, and confirmed blocks
+// SHARED HEADER BUILDER — one function, used everywhere
+// Format: "Label — Name · Date · Location · Auctioneer"
 // ══════════════════════════════════════════════════════
-function auctionHeaderHTML(meta, rightHTML='') {
-  const metaParts = [];
-  if (meta.date)       metaParts.push(meta.date);
-  if (meta.location)   metaParts.push(esc(meta.location));
-  if (meta.auctioneer) metaParts.push('Auctioneer: '+esc(meta.auctioneer));
-  return `
-    <div class="auction-section-header">
-      <div class="ash-left">
-        <div class="ash-name">${esc(meta.name||'Unnamed Auction')}</div>
-        ${metaParts.length ? `<div class="ash-meta">${metaParts.join('<span class="sah-sep">·</span>')}</div>` : ''}
-      </div>
-      <div class="ash-right">${rightHTML}</div>
-    </div>`;
+function sectionHeader(label, meta, actionsHTML='') {
+  const parts = [esc(meta.name||'Unnamed Auction')];
+  if (meta.date)       parts.push(meta.date);
+  if (meta.location)   parts.push(esc(meta.location));
+  if (meta.auctioneer) parts.push('Auctioneer: '+esc(meta.auctioneer));
+  const fullTitle = `<strong style="color:var(--accent)">${label}</strong> — ${parts.join(' · ')}`;
+  return `<div class="session-header">
+    <div class="session-header-title">${fullTitle}</div>
+    <div class="session-header-actions">${actionsHTML}</div>
+  </div>`;
 }
 
-function getCurrentMeta() {
+function getFormMeta() {
   return {
-    name:       document.getElementById('auctionName').value       || 'Unnamed Auction',
-    date:       document.getElementById('auctionDate').value       || '',
-    location:   document.getElementById('auctionLocation').value   || '',
-    auctioneer: document.getElementById('auctioneer').value        || ''
+    name:       document.getElementById('auctionName').value     || 'Unnamed Auction',
+    date:       document.getElementById('auctionDate').value     || '',
+    location:   document.getElementById('auctionLocation').value || '',
+    auctioneer: document.getElementById('auctioneer').value      || '',
+    id:         Date.now()
   };
 }
 
 // ══════════════════════════════════════════════════════
-// NEW AUCTION — archive current transcript + draft, start fresh
+// NEW AUCTION — snapshot meta, start fresh session block
 // ══════════════════════════════════════════════════════
 function newAuction() {
-  if (!txRows.length && !draftRows.length) {
-    showAlert('alertBox', 'Nothing to archive — transcript is empty.');
-    return;
-  }
+  const meta = getFormMeta();
 
-  const meta = getCurrentMeta();
+  // Hide placeholder
+  const ph = document.getElementById('sessionPlaceholder');
+  if (ph) ph.style.display = 'none';
 
-  // Archive current transcript section
-  if (txRows.length) {
-    txSections.push({ meta, rows: [...txRows] });
-    renderArchivedSections();
-  }
+  // Set active meta — all subsequent transcript + extraction use this
+  activeMeta = meta;
 
-  // Archive current draft into a labeled section above the draft area
-  if (draftRows.length) {
-    const archiveDiv = document.getElementById('draftArchive');
-    if (archiveDiv) {
-      const section = document.createElement('div');
-      section.className = 'draft-archive-section';
-      const rowsHTML = draftRows.map(r=>`<tr>
-        <td><span class="conf-badge ${r.confidence==='low'?'conf-low':'conf-high'}">${r.confidence==='low'?'⚠ guess':'✓ sure'}</span></td>
-        <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:var(--accent)">${esc(r.lotId||'—')}</td>
-        <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:var(--success)">${esc(r.winningBid||'—')}</td>
-        <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:#7ec8e3">${esc(r.minBid||'—')}</td>
-        <td style="font-family:'DM Mono',monospace;font-size:0.76rem;color:var(--deepgram)">${esc(r.bidderNum||'—')}</td>
-        <td style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted)">${esc(r.timestamp||'')}</td>
-        <td style="font-size:0.74rem;color:var(--muted)">${esc(r.notes||'')}</td>
-      </tr>`).join('');
-      const toggleId = 'darch-'+Date.now();
-      section.innerHTML = auctionHeaderHTML(meta,
-        `<button onclick="document.getElementById('${toggleId}').classList.toggle('collapsed')" class="rerun-btn">▾ collapse</button>`
-      ) + `
-        <div id="${toggleId}" class="tbl-wrap">
-          <table class="gt">
-            <thead><tr>
-              <th>Confidence</th><th>Lot / Sale ID</th><th>Winning Bid ($)</th>
-              <th>Min Bid ($)</th><th>Bidder #</th><th>Timestamp</th><th>Notes</th>
-            </tr></thead>
-            <tbody>${rowsHTML}</tbody>
-          </table>
-        </div>`;
-      archiveDiv.appendChild(section);
-    }
-  }
-
-  // Clear current transcript and draft for new auction
+  // Reset transcript for new session
   txRows = [];
   draftRows = [];
-  document.getElementById('transcriptBox').innerHTML = '<div class="placeholder">New auction ready — start recording or upload a file.</div>';
-  document.getElementById('draftSection').style.display = 'none';
+
+  // Create a fresh transcript block in the stream
+  const stream = document.getElementById('sessionStream');
+  const block = document.createElement('div');
+  block.id = 'txblock-' + meta.id;
+  block.className = 'session-block';
+  block.innerHTML = sectionHeader('Live Transcript', meta,
+    `<div id="modeBadge" class="badge badge-live">● Live</div>
+     <button onclick="clearCurrentTranscript()" class="rerun-btn" style="color:var(--danger);border-color:var(--danger)">✕ Clear</button>`) +
+    `<div class="transcript-box" id="transcriptBox">
+      <div class="placeholder">Start recording or upload a file to begin.</div>
+    </div>`;
+  stream.appendChild(block);
+
+  // Reset UI
   document.getElementById('rowCount').textContent = '0';
   document.getElementById('extractBtn').disabled = true;
   document.getElementById('exportTranscriptBtn').disabled = true;
-
-  setStat('done', `"${meta.name}" archived — ready for next auction`);
+  setStat('done', `Ready — recording for "${meta.name}"`);
   autoSave();
-}
-
-function renderArchivedSections() {
-  const wrap = document.getElementById('archivedSections');
-  if (!wrap) return;
-  wrap.innerHTML = txSections.map((sec, idx) => {
-    const toggleId = 'txarch-'+idx;
-    return `
-      <div class="tx-archive-section">
-        ${auctionHeaderHTML(sec.meta,
-          `<span class="tx-archive-meta">${sec.rows.length} lines</span>
-           <button onclick="document.getElementById('${toggleId}').classList.toggle('collapsed')" class="rerun-btn">▾</button>`
-        )}
-        <div class="tx-archive-body" id="${toggleId}">
-          ${sec.rows.map(r=>`
-            <div class="t-line" style="padding:0.12rem 0.9rem">
-              <span class="t-ts">${r.timestamp}</span>
-              <span class="t-spk">${r.speaker}</span>
-              <span class="t-txt">${esc(r.text)}</span>
-            </div>`).join('')}
-        </div>
-      </div>
-      <div class="tx-section-divider">
-        <div class="tx-section-divider-line"></div>
-        <div class="tx-section-divider-label">▼ NEW AUCTION</div>
-        <div class="tx-section-divider-line"></div>
-      </div>`;
-  }).join('');
 }
 
 function clearTranscript() {
@@ -1517,7 +1474,7 @@ window.addEventListener('beforeunload', () => {
       auctionBlocks,
       txRows,
       draftRows,
-      txSections,
+      activeMeta,
       idCtr,
       blockCtr,
       keyterms: document.getElementById('keyterms')?.value || '',
@@ -1539,7 +1496,7 @@ function autoSave() {
       auctionBlocks,
       txRows,
       draftRows,
-      txSections,
+      activeMeta,
       idCtr,
       blockCtr,
       keyterms:    document.getElementById('keyterms')?.value || '',
@@ -1570,11 +1527,9 @@ function autoRestore() {
     if (state.blockCtr) blockCtr = state.blockCtr;
 
     // Restore transcript
-    // Restore archived sections
-    if (Array.isArray(state.txSections) && state.txSections.length) {
-      // Migrate old format {name,date,rows} to new {meta,rows}
-      txSections = state.txSections.map(s => s.meta ? s : { meta:{name:s.name||'',date:s.date||'',location:'',auctioneer:''}, rows:s.rows||[] });
-      renderArchivedSections();
+    // Restore active meta
+    if (state.activeMeta) {
+      activeMeta = state.activeMeta;
     }
 
     if (Array.isArray(state.txRows) && state.txRows.length) {
