@@ -620,7 +620,7 @@ Return ONLY a valid JSON array. No markdown, no backticks, no explanation. Just 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01'},
+      headers:{'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
       body:JSON.stringify({
         model:'claude-sonnet-4-20250514',
         max_tokens:4096,
@@ -650,8 +650,11 @@ Return ONLY a valid JSON array. No markdown, no backticks, no explanation. Just 
 
   } catch(err) {
     document.getElementById('extractBar').classList.remove('show');
-    showAlert('alertBox','Extraction error: '+err.message);
-    setStat('','Extraction failed');
+    const msg = err.message.includes('Failed to fetch')
+      ? 'Could not reach Claude API. Check your internet connection and that your Claude API key is correct.'
+      : 'Extraction error: '+err.message;
+    showAlert('alertBox', msg);
+    setStat('','Extraction failed — see error above');
   }
   document.getElementById('extractBtn').disabled=false;
 }
