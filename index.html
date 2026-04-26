@@ -611,6 +611,9 @@ function addTxRow(sec, spk, text) {
   renderTxBox();
   document.getElementById('exportTranscriptBtn').disabled=false;
   document.getElementById('rowCount').textContent=txRows.length;
+  // Throttle saves — don't hit localStorage on every single word during live recording
+  clearTimeout(addTxRow._saveTimer);
+  addTxRow._saveTimer = setTimeout(autoSave, 2000);
 }
 
 function renderTxBox() {
@@ -703,6 +706,7 @@ If truly no sales found: []`;
     document.getElementById('draftSection').style.display='block';
     document.getElementById('extractBar').classList.remove('show');
     setStat('done',`${extracted.length} sale${extracted.length!==1?'s':''} found — review below then click Keep`);
+    autoSave();
 
   } catch(err) {
     document.getElementById('extractBar').classList.remove('show');
@@ -748,7 +752,7 @@ function renderDraftTable() {
     </table>`;
 }
 
-function updDraft(id,field,val) { const r=draftRows.find(r=>r.id===id); if(r) r[field]=val; }
+function updDraft(id,field,val) { const r=draftRows.find(r=>r.id===id); if(r) { r[field]=val; autoSave(); } }
 
 function markEdit(inp) {
   inp.classList.remove('uncertain');
@@ -756,18 +760,20 @@ function markEdit(inp) {
   if(badge){badge.className='conf-badge conf-high';badge.textContent='✓ edited';}
 }
 
-function delDraftRow(id) { draftRows=draftRows.filter(r=>r.id!==id); renderDraftTable(); }
+function delDraftRow(id) { draftRows=draftRows.filter(r=>r.id!==id); renderDraftTable(); autoSave(); }
 
 function deleteDraft() {
   draftRows = [];
   document.getElementById('draftSection').style.display='none';
   document.getElementById('keepConfirm').classList.remove('show');
   setStat('done','Draft deleted — transcript still available');
+  autoSave();
 }
 
 function addDraftRow() {
   draftRows.push({id:idCtr++,lotId:'',winningBid:'',minBid:'',bidderNum:'',timestamp:'',notes:'',confidence:'high'});
   renderDraftTable();
+  autoSave();
   const inputs=document.querySelectorAll('#draftTableWrap tbody tr:last-child input');
   if(inputs[0]) inputs[0].focus();
 }
@@ -1193,10 +1199,13 @@ document.getElementById('auctionDate').valueAsDate = new Date();
 function clearTranscript() {
   if (txRows.length && !confirm('Clear the live transcript? This cannot be undone.')) return;
   txRows = [];
+  draftRows = [];
   document.getElementById('transcriptBox').innerHTML = '<div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>';
+  document.getElementById('draftSection').style.display = 'none';
   document.getElementById('rowCount').textContent = '0';
   document.getElementById('exportTranscriptBtn').disabled = true;
   document.getElementById('extractBtn').disabled = true;
+  autoSave();
 }
 
 
@@ -1268,6 +1277,7 @@ function autoSave() {
       savedAt: new Date().toISOString(),
       auctionBlocks,
       txRows,
+      draftRows,
       idCtr,
       blockCtr,
       auctionMeta: {
@@ -1289,7 +1299,8 @@ function autoRestore() {
     const raw = localStorage.getItem(AS_KEY);
     if (!raw) return;
     const state = JSON.parse(raw);
-    if (!state || !Array.isArray(state.auctionBlocks)) return;
+    if (!state) return;
+    if (!Array.isArray(state.auctionBlocks)) state.auctionBlocks = [];
 
     // Restore counters
     if (state.idCtr)    idCtr    = state.idCtr;
@@ -1302,6 +1313,13 @@ function autoRestore() {
       document.getElementById('rowCount').textContent = txRows.length;
       document.getElementById('exportTranscriptBtn').disabled = false;
       document.getElementById('extractBtn').disabled = false;
+    }
+
+    // Restore draft rows (AI extracted but not yet kept)
+    if (Array.isArray(state.draftRows) && state.draftRows.length) {
+      draftRows = state.draftRows;
+      renderDraftTable();
+      document.getElementById('draftSection').style.display = 'block';
     }
 
     // Restore auction blocks
