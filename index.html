@@ -355,7 +355,8 @@
         </div>
         <label style="margin-top:0.4rem">Keyterms <span style="color:var(--muted);font-size:0.62rem;text-transform:none;letter-spacing:0">(Deepgram boost — comma separated)</span></label>
         <textarea id="keyterms" rows="2" placeholder="e.g. Lot, Item, Bidder, Johnson Estate, paddle, sold, going once..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.76rem;padding:0.5rem 0.7rem;outline:none;resize:vertical;transition:border-color 0.15s;margin-bottom:0.25rem" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" oninput="saveKeyterms()"></textarea>
-        <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.4rem;line-height:1.5">Words Deepgram will prioritize recognizing. Add lot prefixes, bidder terms, item names specific to your auctions. Saved automatically.</div>
+        <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.75rem;line-height:1.5">Words Deepgram will prioritize recognizing. Add lot prefixes, bidder terms, item names specific to your auctions. Saved automatically.</div>
+        <button class="btn" id="newAuctionBtn" onclick="newAuction()" style="border:2px solid var(--accent);background:rgba(232,196,74,0.1);color:var(--accent);font-weight:700;font-size:0.95rem;padding:0.8rem;letter-spacing:0.03em">＋ New Auction</button>
       </div>
 
       <!-- Controls -->
@@ -386,7 +387,6 @@
         </div>
 
         <div class="divider"></div>
-        <button class="btn" id="newAuctionBtn" onclick="newAuction()" style="border:1.5px solid var(--accent);background:rgba(232,196,74,0.08);color:var(--accent);font-weight:600;font-size:0.9rem">＋ New Auction</button>
         <button class="btn btn-primary" id="extractBtn" onclick="runExtraction()" disabled>🤖 Extract Sale Data with AI</button>
         <button class="btn btn-success" id="exportTranscriptBtn" onclick="exportTranscriptExcel()" disabled>📊 Download Transcript Excel</button>
         <button class="btn btn-ghost" onclick="clearAll()">🗑 Clear All</button>
@@ -888,6 +888,21 @@ function deleteDraftBlock(metaId) {
   autoSave();
 }
 
+function deleteCurrentTxBlock() {
+  if (!activeMeta) return;
+  if (!confirm('Delete this entire transcript block? This cannot be undone.')) return;
+  const block = document.getElementById('txblock-' + activeMeta.id);
+  if (block) block.remove();
+  txRows = [];
+  draftRows = [];
+  activeMeta = null;
+  document.getElementById('rowCount').textContent = '0';
+  document.getElementById('extractBtn').disabled = true;
+  document.getElementById('exportTranscriptBtn').disabled = true;
+  setStat('', 'Ready');
+  autoSave();
+}
+
 function clearCurrentTranscript() {
   if (txRows.length && !confirm('Clear this transcript? This cannot be undone.')) return;
   txRows = [];
@@ -1362,7 +1377,8 @@ function newAuction() {
   block.className = 'session-block';
   block.innerHTML = sectionHeader('Live Transcript', meta,
     `<div id="modeBadge" class="badge badge-live">● Live</div>
-     <button onclick="clearCurrentTranscript()" class="rerun-btn" style="color:var(--danger);border-color:var(--danger)">✕ Clear</button>`) +
+     <button onclick="clearCurrentTranscript()" class="rerun-btn" style="color:var(--muted)">✕ Clear</button>
+     <button onclick="deleteCurrentTxBlock()" class="rerun-btn" style="color:var(--danger);border-color:var(--danger)">🗑 Delete</button>`) +
     `<div class="transcript-box" id="transcriptBox">
       <div class="placeholder">Start recording or upload a file to begin.</div>
     </div>`;
