@@ -590,11 +590,6 @@ async function transcribeFile() {
   const key = document.getElementById('apiKey').value.trim();
   if (!key) return showAlert('alertBoxFile','Enter your API key first.');
   if (!selFile) return showAlert('alertBoxFile','Select an audio file first.');
-  const ext = (selFile.name.split('.').pop()||'').toLowerCase();
-  const mimeMap2 = {mp3:'audio/mpeg',mp4:'audio/mp4',m4a:'audio/mp4',wav:'audio/wav',ogg:'audio/ogg',webm:'audio/webm',flac:'audio/flac',aac:'audio/aac'};
-  const detectedType = selFile.type || mimeMap2[ext] || 'audio/mpeg';
-  setStat('processing',`Uploading ${selFile.name} (${detectedType}) — transcribing…`);
-  console.log('[File upload]', selFile.name, 'size:', selFile.size, 'type:', selFile.type, 'detected:', detectedType);
   document.getElementById('transcribeBtn').disabled=true;
   document.getElementById('transcribeBtn').textContent='⏳ Processing…';
   try {
@@ -603,24 +598,27 @@ async function transcribeFile() {
     const lineCount = txRows.length;
     setStat('done', lineCount > 0
       ? `Transcribed ${lineCount} line${lineCount!==1?'s':''} — click Extract Sale Data`
-      : 'Transcription returned 0 lines — see browser console (F12) for details');
+      : 'Transcription returned 0 lines — try a different file format');
     if (txRows.length) document.getElementById('extractBtn').disabled=false;
-    clearTimeout(addTxRow._saveTimer); // cancel throttle — save immediately
+    clearTimeout(addTxRow._saveTimer);
     autoSave();
-  } catch(err) { showAlert('alertBoxFile','Error: '+err.message); setStat('','Error — try again'); }
+  } catch(err) {
+    showAlert('alertBoxFile','Error: '+err.message);
+    setStat('','Error — try again');
+  }
   document.getElementById('transcribeBtn').disabled=false;
   document.getElementById('transcribeBtn').textContent='⚡ Transcribe File';
 }
 
 async function doDeepgram(key) {
-  // Determine correct MIME type — browser often returns empty string
+  const ext = (selFile.name.split('.').pop()||'').toLowerCase();
   const mimeMap = {
     mp3:'audio/mpeg', mp4:'audio/mp4', m4a:'audio/mp4', wav:'audio/wav',
     ogg:'audio/ogg', webm:'audio/webm', flac:'audio/flac', aac:'audio/aac',
     wma:'audio/x-ms-wma', aiff:'audio/aiff'
   };
-  const ext = (selFile.name.split('.').pop()||'').toLowerCase();
   const contentType = selFile.type || mimeMap[ext] || 'audio/mpeg';
+  setStat('processing', `Uploading ${selFile.name} to Deepgram…`);
 
   const res = await fetch(
     buildDeepgramURL('https'),
@@ -628,29 +626,25 @@ async function doDeepgram(key) {
   );
   if (!res.ok) throw new Error(`Deepgram ${res.status}: ${await res.text()}`);
   const data = await res.json();
+  console.log('[Deepgram response]', data);
 
-  // Debug — show in console so you can inspect the raw response
-  console.log('[Deepgram response]', JSON.stringify(data, null, 2));
-
-  // Try utterances first (best — includes speaker + timestamps per sentence)
+  // Try utterances first (best — speaker + timestamps per sentence)
   const utts = data.results?.utterances;
   if (utts?.length) {
     utts.forEach(u => addTxRow(u.start, `Speaker ${(u.speaker??0)+1}`, u.transcript.trim()));
     return;
   }
 
-  // Fallback: use word-level data grouped into chunks — captures everything
+  // Fallback: word-level data grouped into chunks — captures everything
   const words = data.results?.channels?.[0]?.alternatives?.[0]?.words;
   if (words?.length) {
-    // Group words into ~10-second chunks so nothing is lost
     let chunk = [], chunkStart = 0;
     words.forEach((w, i) => {
       if (chunk.length === 0) chunkStart = w.start;
-      chunk.push(w.word || w.punctuated_word || '');
+      chunk.push(w.punctuated_word || w.word || '');
       const isLast = i === words.length - 1;
       const gapAhead = !isLast && (words[i+1].start - w.end) > 1.5;
-      const longEnough = chunk.length >= 20;
-      if (isLast || gapAhead || longEnough) {
+      if (isLast || gapAhead || chunk.length >= 20) {
         const spk = w.speaker != null ? `Speaker ${w.speaker+1}` : 'Speaker 1';
         addTxRow(chunkStart, spk, chunk.join(' ').trim());
         chunk = [];
@@ -659,10 +653,10 @@ async function doDeepgram(key) {
     return;
   }
 
-  // Last resort: full transcript as single block
+  // Last resort: full transcript as one block
   const full = data.results?.channels?.[0]?.alternatives?.[0]?.transcript;
-  if (full?.trim()) addTxRow(0, 'Speaker 1', full.trim());
-  else throw new Error('Deepgram returned no transcript. Check the file format and API key.');
+  if (full?.trim()) { addTxRow(0, 'Speaker 1', full.trim()); return; }
+  throw new Error('Deepgram returned no transcript. Check your API key and file format.');
 }
 
 async function doAssemblyAI(key) {
