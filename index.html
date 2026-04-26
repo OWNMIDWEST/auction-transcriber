@@ -323,6 +323,9 @@
           <div><label>Location</label><input type="text" id="auctionLocation" placeholder="Miami, FL" /></div>
           <div><label>Auctioneer</label><input type="text" id="auctioneer" placeholder="Name" /></div>
         </div>
+        <label style="margin-top:0.4rem">Keyterms <span style="color:var(--muted);font-size:0.62rem;text-transform:none;letter-spacing:0">(Deepgram boost — comma separated)</span></label>
+        <textarea id="keyterms" rows="2" placeholder="e.g. Lot, Item, Bidder, Johnson Estate, paddle, sold, going once..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:0.76rem;padding:0.5rem 0.7rem;outline:none;resize:vertical;transition:border-color 0.15s;margin-bottom:0.25rem" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'" oninput="saveKeyterms()"></textarea>
+        <div style="font-size:0.65rem;color:var(--muted);margin-bottom:0.4rem;line-height:1.5">Words Deepgram will prioritize recognizing. Add lot prefixes, bidder terms, item names specific to your auctions. Saved automatically.</div>
       </div>
 
       <!-- Controls -->
@@ -495,6 +498,32 @@ function setMode(m) {
 // ══════════════════════════════════════════════════════
 // LIVE RECORDING
 // ══════════════════════════════════════════════════════
+// Build Deepgram URL with nova-3, keyterms boost, and best-quality params
+function buildDeepgramURL() {
+  const base = 'api.deepgram.com/v1/listen';
+  const params = new URLSearchParams({
+    model: 'nova-3',
+    language: 'en-US',
+    smart_format: 'true',
+    diarize: 'true',
+    punctuate: 'true',
+    utterances: 'true',
+    filler_words: 'false',
+    numerals: 'true',          // convert spoken numbers to digits
+  });
+
+  // Add keyterms boost
+  const raw = (document.getElementById('keyterms')?.value || '').trim();
+  if (raw) {
+    raw.split(',').map(k => k.trim()).filter(Boolean).forEach(k => {
+      params.append('keyterm', k);
+    });
+  }
+
+  const protocol = arguments[0] === 'wss' ? 'wss' : 'https';
+  return `${protocol}://${base}?${params.toString()}`;
+}
+
 async function startLive() {
   const key = document.getElementById('apiKey').value.trim();
   if (!key) return showAlert('alertBox','Enter your Deepgram API key first.');
@@ -502,7 +531,7 @@ async function startLive() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({audio:true});
     wsocket = new WebSocket(
-      'wss://api.deepgram.com/v1/listen?model=nova-2&language=en&smart_format=true&diarize=true&punctuate=true&utterances=true',
+      buildDeepgramURL('wss'),
       ['token',key]
     );
     wsocket.onopen = () => {
@@ -537,6 +566,8 @@ function stopLive() {
   document.getElementById('startBtn').disabled = false;
   document.getElementById('stopBtn').disabled = true;
   if (txRows.length) document.getElementById('extractBtn').disabled = false;
+  clearTimeout(addTxRow._saveTimer); // cancel throttle — save immediately on stop
+  autoSave();
 }
 
 // ══════════════════════════════════════════════════════
@@ -567,6 +598,8 @@ async function transcribeFile() {
     else await doAssemblyAI(key);
     setStat('done','Done — click Extract Sale Data to identify sales');
     if (txRows.length) document.getElementById('extractBtn').disabled=false;
+    clearTimeout(addTxRow._saveTimer); // cancel throttle — save immediately
+    autoSave();
   } catch(err) { showAlert('alertBoxFile','Error: '+err.message); setStat('','Error — try again'); }
   document.getElementById('transcribeBtn').disabled=false;
   document.getElementById('transcribeBtn').textContent='⚡ Transcribe File';
@@ -574,7 +607,7 @@ async function transcribeFile() {
 
 async function doDeepgram(key) {
   const res = await fetch(
-    'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&diarize=true&punctuate=true&utterances=true',
+    buildDeepgramURL('https'),
     {method:'POST',headers:{'Authorization':'Token '+key,'Content-Type':selFile.type},body:selFile}
   );
   if (!res.ok) throw new Error(`Deepgram ${res.status}: ${await res.text()}`);
@@ -611,9 +644,13 @@ function addTxRow(sec, spk, text) {
   renderTxBox();
   document.getElementById('exportTranscriptBtn').disabled=false;
   document.getElementById('rowCount').textContent=txRows.length;
-  // Throttle saves — don't hit localStorage on every single word during live recording
+  // Save every 10 rows (file upload) or after 2s idle (live recording)
   clearTimeout(addTxRow._saveTimer);
-  addTxRow._saveTimer = setTimeout(autoSave, 2000);
+  if (txRows.length % 10 === 0) {
+    autoSave(); // immediate save every 10 rows
+  } else {
+    addTxRow._saveTimer = setTimeout(autoSave, 2000);
+  }
 }
 
 function renderTxBox() {
@@ -1243,6 +1280,18 @@ function forgetKey(inputId, checkboxId, storageKey) {
   document.getElementById(checkboxId).checked = false;
 }
 
+function saveKeyterms() {
+  const val = document.getElementById('keyterms')?.value || '';
+  localStorage.setItem('as_keyterms', val);
+}
+
+function loadKeyterms() {
+  const val = localStorage.getItem('as_keyterms');
+  if (val && document.getElementById('keyterms')) {
+    document.getElementById('keyterms').value = val;
+  }
+}
+
 function loadSavedKeys() {
   // Transcription key
   const txKey = localStorage.getItem('as_tx_key');
@@ -1263,6 +1312,7 @@ function loadSavedKeys() {
   if (svc) selectService(svc);
 }
 loadSavedKeys();
+loadKeyterms();
 
 // ══════════════════════════════════════════════════════
 // AUTO-SAVE / AUTO-RESTORE (localStorage)
@@ -1270,6 +1320,30 @@ loadSavedKeys();
 // every meaningful change. Restores on page load.
 // ══════════════════════════════════════════════════════
 const AS_KEY = 'as_autosave_v1';
+
+// Safety net — fires synchronously when browser tab/window is closed
+window.addEventListener('beforeunload', () => {
+  // Clear the throttle timer and save synchronously
+  clearTimeout(addTxRow._saveTimer);
+  try {
+    const state = {
+      savedAt: new Date().toISOString(),
+      auctionBlocks,
+      txRows,
+      draftRows,
+      idCtr,
+      blockCtr,
+      keyterms: document.getElementById('keyterms')?.value || '',
+      auctionMeta: {
+        name:       document.getElementById('auctionName').value,
+        date:       document.getElementById('auctionDate').value,
+        location:   document.getElementById('auctionLocation').value,
+        auctioneer: document.getElementById('auctioneer').value
+      }
+    };
+    localStorage.setItem(AS_KEY, JSON.stringify(state));
+  } catch(e) {}
+});
 
 function autoSave() {
   try {
@@ -1280,6 +1354,7 @@ function autoSave() {
       draftRows,
       idCtr,
       blockCtr,
+      keyterms:    document.getElementById('keyterms')?.value || '',
       auctionMeta: {
         name:       document.getElementById('auctionName').value,
         date:       document.getElementById('auctionDate').value,
@@ -1313,6 +1388,7 @@ function autoRestore() {
       document.getElementById('rowCount').textContent = txRows.length;
       document.getElementById('exportTranscriptBtn').disabled = false;
       document.getElementById('extractBtn').disabled = false;
+      document.getElementById('rowCount').textContent = txRows.length;
     }
 
     // Restore draft rows (AI extracted but not yet kept)
@@ -1330,13 +1406,17 @@ function autoRestore() {
     updateTabBadge();
 
     // Restore meta fields
+    if (state.keyterms && document.getElementById('keyterms')) document.getElementById('keyterms').value = state.keyterms;
     const m = state.auctionMeta || {};
     if (m.name)       document.getElementById('auctionName').value      = m.name;
     if (m.date)       document.getElementById('auctionDate').value       = m.date;
     if (m.location)   document.getElementById('auctionLocation').value   = m.location;
     if (m.auctioneer) document.getElementById('auctioneer').value        = m.auctioneer;
 
-    if (state.auctionBlocks.length || (state.txRows && state.txRows.length)) {
+    const hasData = (state.auctionBlocks && state.auctionBlocks.length > 0)
+                  || (state.txRows && state.txRows.length > 0)
+                  || (state.draftRows && state.draftRows.length > 0);
+    if (hasData) {
       showRestoreBanner(state.savedAt);
     }
   } catch(e) {
