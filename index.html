@@ -554,12 +554,63 @@ async function transcribeFile() {
   document.getElementById('transcribeBtn').textContent='⚡ Transcribe File';
 }
 
+// Convert M4A/MP4/AAC to clean 16kHz mono WAV before sending to Deepgram.
+// Fixes large gaps caused by iPhone Voice Memo encoding.
+async function reencodeToWav(file) {
+  setStat('processing','Converting M4A to WAV for best accuracy…');
+  const arrayBuffer = await file.arrayBuffer();
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)({sampleRate:16000});
+  let decoded;
+  try { decoded = await audioCtx.decodeAudioData(arrayBuffer); }
+  catch(e) { audioCtx.close(); throw new Error('Could not decode audio: '+e.message); }
+  const sampleRate=16000, numChannels=1, length=decoded.length;
+  const offCtx = new OfflineAudioContext(numChannels, length, sampleRate);
+  const src = offCtx.createBufferSource();
+  src.buffer = decoded;
+  src.connect(offCtx.destination);
+  src.start(0);
+  const rendered = await offCtx.startRendering();
+  audioCtx.close();
+  const pcm = rendered.getChannelData(0);
+  const wavBuf = new ArrayBuffer(44 + pcm.length*2);
+  const view = new DataView(wavBuf);
+  const ws = (off,str) => { for(let i=0;i<str.length;i++) view.setUint8(off+i,str.charCodeAt(i)); };
+  ws(0,'RIFF'); view.setUint32(4,36+pcm.length*2,true);
+  ws(8,'WAVE'); ws(12,'fmt '); view.setUint32(16,16,true);
+  view.setUint16(20,1,true); view.setUint16(22,1,true);
+  view.setUint32(24,sampleRate,true); view.setUint32(28,sampleRate*2,true);
+  view.setUint16(32,2,true); view.setUint16(34,16,true);
+  ws(36,'data'); view.setUint32(40,pcm.length*2,true);
+  let off=44;
+  for(let i=0;i<pcm.length;i++){const s=Math.max(-1,Math.min(1,pcm[i]));view.setInt16(off,s<0?s*0x8000:s*0x7FFF,true);off+=2;}
+  return new Blob([wavBuf],{type:'audio/wav'});
+}
+
 async function doDeepgram(key) {
   const ext = (selFile.name.split('.').pop()||'').toLowerCase();
-  const mimeMap = {mp3:'audio/mpeg',mp4:'audio/mp4',m4a:'audio/mp4',wav:'audio/wav',ogg:'audio/ogg',webm:'audio/webm',flac:'audio/flac',aac:'audio/aac'};
-  const ct = selFile.type || mimeMap[ext] || 'audio/mpeg';
-  setStat('processing',`Uploading ${selFile.name} to Deepgram…`);
-  const res = await fetch(buildDgURL('https'), {method:'POST',headers:{'Authorization':'Token '+key,'Content-Type':ct},body:selFile});
+  let fileToSend = selFile;
+  let ct = 'audio/mpeg';
+
+  // M4A/MP4/AAC from iPhone - convert to WAV first to fix transcription gaps
+  if (['m4a','mp4','aac'].includes(ext)) {
+    try {
+      setStat('processing','Converting M4A to WAV (fixes gaps in long recordings)…');
+      fileToSend = await reencodeToWav(selFile);
+      ct = 'audio/wav';
+      setStat('processing','Conversion done - uploading to Deepgram…');
+    } catch(e) {
+      console.warn('WAV conversion failed, sending original:', e.message);
+      const mimeMap2 = {m4a:'audio/mp4',mp4:'audio/mp4',aac:'audio/aac'};
+      ct = mimeMap2[ext] || 'audio/mp4';
+      setStat('processing',`Uploading ${selFile.name} to Deepgram…`);
+    }
+  } else {
+    const mimeMap = {mp3:'audio/mpeg',wav:'audio/wav',ogg:'audio/ogg',webm:'audio/webm',flac:'audio/flac'};
+    ct = selFile.type || mimeMap[ext] || 'audio/mpeg';
+    setStat('processing',`Uploading ${selFile.name} to Deepgram…`);
+  }
+
+  const res = await fetch(buildDgURL('https'), {method:'POST',headers:{'Authorization':'Token '+key,'Content-Type':ct},body:fileToSend});
   if (!res.ok) throw new Error(`Deepgram ${res.status}: ${await res.text()}`);
   const data = await res.json();
   const utts = data.results?.utterances;
