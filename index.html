@@ -374,15 +374,15 @@
         </div>
 
         <div id="file-controls" style="display:none">
-          <div class="drop-zone" id="dropZone">
-            <input type="file" id="fileInput" accept="audio/*,video/*" onchange="handleFileSelect(this)" />
+          <!-- Hidden file input — triggered by button click for max browser compatibility -->
+          <input type="file" id="fileInput" accept="audio/*,video/*" onchange="handleFileSelect(this)" style="display:none" />
+          <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
             <div class="drop-icon">🎵</div>
-            <div class="drop-text">Drop audio file or click to browse<br><small>MP3, WAV, M4A, OGG, MP4, WEBM</small></div>
+            <div class="drop-text">Drop audio file here or<br><button type="button" onclick="event.stopPropagation();document.getElementById('fileInput').click()" style="margin-top:0.4rem;padding:0.3rem 1rem;border-radius:6px;border:1px solid var(--accent);background:rgba(232,196,74,0.1);color:var(--accent);font-family:'DM Sans',sans-serif;font-size:0.75rem;font-weight:600;cursor:pointer">📂 Browse Files</button><br><small style="font-size:0.65rem;margin-top:0.3rem;display:block">MP3, WAV, M4A, OGG, MP4, WEBM</small></div>
             <div class="drop-filename" id="fileName"></div>
           </div>
           <div class="alert alert-err" id="alertBoxFile"></div>
           <button class="btn btn-primary" id="transcribeBtn" onclick="transcribeFile()" disabled>⚡ Transcribe File</button>
-          <div id="debugWrap" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:0.6rem;margin-top:0.25rem;font-family:'DM Mono',monospace;font-size:0.62rem;color:var(--muted);max-height:120px;overflow-y:auto;white-space:pre-wrap;word-break:break-all" id="debugBox"></div>
         </div>
 
         <div class="divider"></div>
@@ -580,13 +580,17 @@ function handleFileSelect(inp) {
   selFile = inp.files[0];
   if (selFile) { document.getElementById('fileName').textContent=selFile.name; document.getElementById('transcribeBtn').disabled=false; }
 }
-const dz = document.getElementById('dropZone');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
-dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
-dz.addEventListener('drop',e=>{
-  e.preventDefault();dz.classList.remove('dragover');
-  const f=e.dataTransfer.files[0];
-  if(f){selFile=f;document.getElementById('fileName').textContent=f.name;document.getElementById('transcribeBtn').disabled=false;}
+// Drag & drop on the drop zone
+document.addEventListener('DOMContentLoaded', () => {
+  const dz = document.getElementById('dropZone');
+  if (!dz) return;
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('dragover');
+    const f = e.dataTransfer.files[0];
+    if (f) { selFile=f; document.getElementById('fileName').textContent=f.name; document.getElementById('transcribeBtn').disabled=false; }
+  });
 });
 
 async function transcribeFile() {
@@ -701,6 +705,7 @@ function addTxRow(sec, spk, text) {
 
 function renderTxBox() {
   const box = document.getElementById('transcriptBox');
+  if (!box) return; // session block not yet created — wait for newAuction()
   box.innerHTML = txRows.map(r=>`
     <div class="t-line">
       <span class="t-ts">${r.timestamp}</span>
@@ -894,7 +899,7 @@ function deleteCurrentTxBlock() {
   txRows = [];
   draftRows = [];
   activeMeta = null;
-  setRowCount('0');
+  setRowCount(0);
   const exb3=document.getElementById('extractBtn'); if(exb3) exb3.disabled=true;
   const etb3=document.getElementById('exportTranscriptBtn'); if(etb3) etb3.disabled=true;
   setStat('', 'Ready');
@@ -906,7 +911,7 @@ function clearCurrentTranscript() {
   txRows = [];
   const box = document.getElementById('transcriptBox');
   if (box) box.innerHTML = '<div class="placeholder">Start recording or upload a file to begin.</div>';
-  setRowCount('0');
+  setRowCount(0);
   const etb3=document.getElementById('exportTranscriptBtn'); if(etb3) etb3.disabled=true;
   const exb3=document.getElementById('extractBtn'); if(exb3) exb3.disabled=true;
   autoSave();
@@ -938,7 +943,7 @@ function keepSales() {
   updateTabBadge();
 
   // Hide draft, show confirmation
-  document.getElementById('draftSection').style.display='none';
+  // draftSection removed — draft now renders inline in session stream
   const confirm = document.getElementById('keepConfirm');
   const kct=document.getElementById('keepConfirmText'); if(kct) kct.textContent = `${count} sale${count!==1?'s':''} confirmed and added to Sales Data.`;
   confirm.classList.add('show');
@@ -1315,9 +1320,9 @@ function clearAll(){
   const ss=document.getElementById('sessionStream'); if(ss){ ss.innerHTML=''; const ph=document.createElement('div'); ph.id='sessionPlaceholder'; ph.className='placeholder'; ph.style.cssText='padding:3rem 1rem;text-align:center;color:var(--muted);font-size:0.85rem;line-height:2;background:var(--surface);border:1px solid var(--border);border-radius:12px'; ph.innerHTML='Fill in Auction Details on the left, then click<br><strong style="color:var(--accent)">＋ New Auction</strong> to begin a session.'; ss.appendChild(ph); }
   document.getElementById('auctionBlocksWrap').innerHTML='<div class="empty-grid" id="salesEmptyMsg" style="padding:3rem 1rem;color:var(--muted);text-align:center;font-size:0.85rem;line-height:2">No confirmed sales yet.<br>Go to <strong style="color:var(--accent)">Transcribe</strong> → transcribe audio → extract with AI → review → click <strong style="color:var(--success)">Keep</strong>.</div>';
   document.getElementById('transcriptBox').innerHTML='<div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>';
-  document.getElementById('draftSection').style.display='none';
+  // draftSection removed — draft now renders inline in session stream
   document.getElementById('keepConfirm').classList.remove('show');
-  setRowCount('0');
+  setRowCount(0);
   const badge=document.getElementById('salesTabCount');badge.style.display='none';
   ['extractBtn','exportTranscriptBtn'].forEach(id=>document.getElementById(id).disabled=true);
   document.getElementById('fileName').textContent='';
@@ -1389,7 +1394,7 @@ function newAuction() {
   stream.appendChild(block);
 
   // Reset UI
-  setRowCount('0');
+  setRowCount(0);
   const exb3=document.getElementById('extractBtn'); if(exb3) exb3.disabled=true;
   const etb3=document.getElementById('exportTranscriptBtn'); if(etb3) etb3.disabled=true;
   setStat('done', `Ready — recording for "${meta.name}"`);
@@ -1400,9 +1405,9 @@ function clearTranscript() {
   if (txRows.length && !confirm('Clear the live transcript? This cannot be undone.')) return;
   txRows = [];
   draftRows = [];
-  document.getElementById('transcriptBox').innerHTML = '<div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>';
-  document.getElementById('draftSection').style.display = 'none';
-  setRowCount('0');
+  const tb = document.getElementById('transcriptBox');
+  if (tb) tb.innerHTML = '<div class="placeholder">Start recording or upload a file to begin.</div>';
+  setRowCount(0);
   const etb3=document.getElementById('exportTranscriptBtn'); if(etb3) etb3.disabled=true;
   const exb3=document.getElementById('extractBtn'); if(exb3) exb3.disabled=true;
   autoSave();
@@ -1565,7 +1570,7 @@ function autoRestore() {
     if (Array.isArray(state.draftRows) && state.draftRows.length) {
       draftRows = state.draftRows;
       renderDraftTable();
-      document.getElementById('draftSection').style.display = 'block';
+      // draftSection removed — draft now renders inline in session stream
     }
 
     // Restore auction blocks
