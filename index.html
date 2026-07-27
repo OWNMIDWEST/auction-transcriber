@@ -312,7 +312,7 @@ table.gt tbody td{padding:.25rem .4rem;vertical-align:middle;}
     </div>
     <div class="extract-bar" id="extractBar">
       <div class="spinner"></div>
-      <div class="extract-text"><strong>Claude AI</strong> is reading the transcript and identifying Lot IDs, winning bids, and bidder numbers…</div>
+      <div class="extract-text"><strong>Claude AI</strong> is carefully reading every line of the transcript — this may take 30-60 seconds for best results…</div>
     </div>
     <div class="keep-confirm" id="keepConfirm">
       <span style="font-size:1.1rem">✓</span>
@@ -701,24 +701,34 @@ async function runExtraction() {
 
   const transcript = txRows.map(r=>`[${r.timestamp}] ${r.speaker}: ${r.text}`).join('\n');
 
-  const systemPrompt = `You are an expert auction data extractor. Your job is critically important. Read every single line of the transcript carefully and identify every completed or likely completed sale. Do NOT require the word "sold" - infer sales from context, bidder numbers called, price confirmations, or the auctioneer moving to the next item.
+  const systemPrompt = `You are an expert auction data extractor. You MUST extract every single sale - missing a sale is a critical failure. Be extremely aggressive - when in doubt, INCLUDE the row.
+
+CRITICAL RULES:
+1. Read EVERY line. Do not skip anything.
+2. NEVER require "sold" to be said. Sales end when: a price is confirmed, a bidder number is called after rising bids, the auctioneer moves to the next item, or phrases like "yours", "congratulations", "got it", "next", "moving on", "going to", "last call", "final", "done" appear.
+3. When you see a dollar amount near a bidder number - that is almost certainly a completed sale. Include it.
+4. Phrases like "So the $X" or "for $X" or "$X to bidder Y" are completed sales - ALWAYS include them.
+5. If bidding chant ends with a number being repeated 2-3 times with no higher counter-bid - that is a sale at that price.
+6. Include EVERY sale even if lot_id, bidder_number, or min_bid are missing - those fields can be null.
+7. It is far better to return 50 rows the user deletes than to miss 10 real sales.
 
 For each sale extract:
-- lot_id: Lot/item/sale number. Convert word numbers to digits. Null if absent.
-- winning_bid: Final price as number only. Convert word numbers to digits. Null if absent.
-- min_bid: Opening/minimum bid as number only. Null if not mentioned.
-- bidder_number: Winning bidder number/paddle. Null if absent.
-- timestamp: When the sale concluded.
-- notes: Item description or reasoning if inferred.
-- confidence: "high" if all three key fields clearly stated, "low" if any inferred.
+- lot_id: Lot/item/sale number. Convert ALL word numbers to digits ("seventy one" = 71). Null if truly absent.
+- winning_bid: Final price as a plain number (19000 not $19,000). Convert word numbers to digits ("nineteen thousand" = 19000, "sixty" in auction context = 60000 if scale matches). Null only if impossible to determine.
+- min_bid: Opening/starting/minimum bid as plain number. Null if not mentioned.
+- bidder_number: Winning bidder paddle/card number as string. Null if not stated.
+- timestamp: Timestamp from transcript when sale concluded.
+- notes: REQUIRED - explain what you heard that indicated a sale, quote the relevant transcript text.
+- confidence: "high" only if lot_id + winning_bid + bidder_number all clearly stated. "low" for everything else - but still include the row.
 
-Include uncertain sales with confidence "low" rather than skipping them. Return ONLY a valid JSON array, no markdown, no explanation. Empty array if none found: []`;
+Return ONLY a raw JSON array. No markdown, no backticks, no explanation. Just the array.
+If genuinely no sales: []`;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages',{
       method:'POST',
       headers:{'Content-Type':'application/json','x-api-key':claudeKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-      body:JSON.stringify({model:'claude-sonnet-4-5',max_tokens:8000,system:systemPrompt,messages:[{role:'user',content:`Read this entire auction transcript carefully and extract every completed sale:\n\n${transcript}`}]})
+      body:JSON.stringify({model:'claude-opus-4-5',max_tokens:16000,system:systemPrompt,messages:[{role:'user',content:`Take as much time as you need. Read the entire transcript multiple times if necessary. Your goal is to find EVERY possible sale - missing even one is unacceptable. Go line by line, slowly and carefully. Extract ALL sales now:\n\n${transcript}`}]})
     });
     if(!res.ok){const e=await res.json();throw new Error(e.error?.message||`API error ${res.status}`);}
     const data = await res.json();
