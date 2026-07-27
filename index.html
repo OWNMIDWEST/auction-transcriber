@@ -361,7 +361,7 @@
       <!-- Controls -->
       <div class="panel">
         <div class="panel-title">Mode</div>
-        <div class="status-bar"><div class="status-dot" id="statusDot"></div><span id="statusText">Ready</span></div>
+        <div class="status-bar"><div class="status-dot" id="statusDot"></div><span id="statusText">Ready</span><span id="rowCount" style="margin-left:auto;font-size:0.68rem;color:var(--muted)"></span></div>
         <div class="mode-toggle">
           <button class="mode-btn active" id="btn-live" onclick="setMode('live')">🎙️ Live Mic</button>
           <button class="mode-btn" id="btn-file" onclick="setMode('file')">📁 Upload File</button>
@@ -496,8 +496,7 @@ function setMode(m) {
   document.getElementById('btn-file').classList.toggle('active', m==='file');
   document.getElementById('live-controls').style.display = m==='live'?'':'none';
   document.getElementById('file-controls').style.display = m==='file'?'':'none';
-  document.getElementById('modeBadge').className = 'badge '+(m==='live'?'badge-live':'badge-rec');
-  document.getElementById('modeBadge').textContent = m==='live'?'● Live':'▶ Recorded';
+  const mb2=document.getElementById('modeBadge'); if(mb2){mb2.className='badge '+(m==='live'?'badge-live':'badge-rec');mb2.textContent=m==='live'?'● Live':'▶ Recorded';}
 }
 
 // ══════════════════════════════════════════════════════
@@ -569,7 +568,7 @@ function stopLive() {
   setStat('done','Recording stopped — click Extract to identify sales');
   document.getElementById('startBtn').disabled = false;
   document.getElementById('stopBtn').disabled = true;
-  if (txRows.length) document.getElementById('extractBtn').disabled = false;
+  if (txRows.length) const exb=document.getElementById('extractBtn'); if(exb) exb.disabled=false;
   clearTimeout(addTxRow._saveTimer); // cancel throttle — save immediately on stop
   autoSave();
 }
@@ -603,7 +602,7 @@ async function transcribeFile() {
     setStat('done', lineCount > 0
       ? `Transcribed ${lineCount} line${lineCount!==1?'s':''} — click Extract Sale Data`
       : 'Transcription returned 0 lines — try a different file format');
-    if (txRows.length) document.getElementById('extractBtn').disabled=false;
+    if (txRows.length) const exb2=document.getElementById('extractBtn'); if(exb2) exb2.disabled=false;
     clearTimeout(addTxRow._saveTimer);
     autoSave();
   } catch(err) {
@@ -689,8 +688,8 @@ function addTxRow(sec, spk, text) {
   if (!activeMeta) { newAuction(); } // auto-start if user forgot to click New Auction
   txRows.push({timestamp:fmtTime(sec),speaker:spk,text});
   renderTxBox();
-  document.getElementById('exportTranscriptBtn').disabled=false;
-  document.getElementById('rowCount').textContent=txRows.length;
+  const etb2=document.getElementById('exportTranscriptBtn'); if(etb2) etb2.disabled=false;
+  setRowCount(txRows.length);
   // Save every 10 rows (file upload) or after 2s idle (live recording)
   clearTimeout(addTxRow._saveTimer);
   if (txRows.length % 10 === 0) {
@@ -723,7 +722,7 @@ async function runExtraction() {
   document.getElementById('keepConfirm').classList.remove('show');
   const draftHeaderWrap = document.getElementById('draftHeaderWrap');
   if (draftHeaderWrap) draftHeaderWrap.innerHTML = auctionHeaderHTML(getCurrentMeta());
-  document.getElementById('extractBtn').disabled=true;
+  const exb4=document.getElementById('extractBtn'); if(exb4) exb4.disabled=true;
 
   const transcript = txRows.map(r=>`[${r.timestamp}] ${r.speaker}: ${r.text}`).join('\n');
 
@@ -823,7 +822,7 @@ If truly no sales found: []`;
     showAlert('alertBox', msg);
     setStat('','Extraction failed — see error above');
   }
-  document.getElementById('extractBtn').disabled=false;
+  const exb2=document.getElementById('extractBtn'); if(exb2) exb2.disabled=false;
 }
 
 // ══════════════════════════════════════════════════════
@@ -895,9 +894,9 @@ function deleteCurrentTxBlock() {
   txRows = [];
   draftRows = [];
   activeMeta = null;
-  document.getElementById('rowCount').textContent = '0';
-  document.getElementById('extractBtn').disabled = true;
-  document.getElementById('exportTranscriptBtn').disabled = true;
+  setRowCount('0');
+  const exb3=document.getElementById('extractBtn'); if(exb3) exb3.disabled=true;
+  const etb3=document.getElementById('exportTranscriptBtn'); if(etb3) etb3.disabled=true;
   setStat('', 'Ready');
   autoSave();
 }
@@ -907,9 +906,9 @@ function clearCurrentTranscript() {
   txRows = [];
   const box = document.getElementById('transcriptBox');
   if (box) box.innerHTML = '<div class="placeholder">Start recording or upload a file to begin.</div>';
-  document.getElementById('rowCount').textContent = '0';
-  document.getElementById('exportTranscriptBtn').disabled = true;
-  document.getElementById('extractBtn').disabled = true;
+  setRowCount('0');
+  const etb3=document.getElementById('exportTranscriptBtn'); if(etb3) etb3.disabled=true;
+  const exb3=document.getElementById('extractBtn'); if(exb3) exb3.disabled=true;
   autoSave();
 }
 
@@ -941,7 +940,7 @@ function keepSales() {
   // Hide draft, show confirmation
   document.getElementById('draftSection').style.display='none';
   const confirm = document.getElementById('keepConfirm');
-  document.getElementById('keepConfirmText').textContent = `${count} sale${count!==1?'s':''} confirmed and added to Sales Data.`;
+  const kct=document.getElementById('keepConfirmText'); if(kct) kct.textContent = `${count} sale${count!==1?'s':''} confirmed and added to Sales Data.`;
   confirm.classList.add('show');
   setTimeout(()=>confirm.classList.remove('show'), 6000);
   setStat('done',`${count} sale${count!==1?'s':''} confirmed`);
@@ -1262,7 +1261,7 @@ function restoreFromJSON(input) {
 
       // Restore transcript rows (append)
       (backup.transcriptRows || []).forEach(r => txRows.push(r));
-      if (txRows.length) { renderTxBox(); document.getElementById('rowCount').textContent = txRows.length; document.getElementById('exportTranscriptBtn').disabled = false; }
+      if (txRows.length) { renderTxBox(); setRowCount(txRows.length); const etb=document.getElementById('exportTranscriptBtn'); if(etb) etb.disabled=false; }
 
       // Restore auction meta fields if currently empty
       const m = backup.auctionMeta || {};
@@ -1300,6 +1299,12 @@ function exportTranscriptExcel(){
 // HELPERS
 // ══════════════════════════════════════════════════════
 function fmtTime(sec){const s=Math.floor(sec),m=Math.floor(s/60),h=Math.floor(m/60);return h>0?`${h}:${String(m%60).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`:`${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
+function setRowCount(n) {
+  const el = document.getElementById('rowCount');
+  if (!el) return;
+  el.textContent = n > 0 ? n + ' line' + (n !== 1 ? 's' : '') : '';
+}
+
 function setStat(type,text){document.getElementById('statusDot').className='status-dot'+(type?' '+type:'');document.getElementById('statusText').textContent=text;}
 function showAlert(id,msg){const el=document.getElementById(id);el.textContent=msg;el.className='alert alert-err show';setTimeout(()=>el.classList.remove('show'),7000);}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -1312,7 +1317,7 @@ function clearAll(){
   document.getElementById('transcriptBox').innerHTML='<div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>';
   document.getElementById('draftSection').style.display='none';
   document.getElementById('keepConfirm').classList.remove('show');
-  document.getElementById('rowCount').textContent='0';
+  setRowCount('0');
   const badge=document.getElementById('salesTabCount');badge.style.display='none';
   ['extractBtn','exportTranscriptBtn'].forEach(id=>document.getElementById(id).disabled=true);
   document.getElementById('fileName').textContent='';
@@ -1384,9 +1389,9 @@ function newAuction() {
   stream.appendChild(block);
 
   // Reset UI
-  document.getElementById('rowCount').textContent = '0';
-  document.getElementById('extractBtn').disabled = true;
-  document.getElementById('exportTranscriptBtn').disabled = true;
+  setRowCount('0');
+  const exb3=document.getElementById('extractBtn'); if(exb3) exb3.disabled=true;
+  const etb3=document.getElementById('exportTranscriptBtn'); if(etb3) etb3.disabled=true;
   setStat('done', `Ready — recording for "${meta.name}"`);
   autoSave();
 }
@@ -1397,9 +1402,9 @@ function clearTranscript() {
   draftRows = [];
   document.getElementById('transcriptBox').innerHTML = '<div class="placeholder">Transcript appears here as audio is processed.<br>Start recording or upload a file to begin.</div>';
   document.getElementById('draftSection').style.display = 'none';
-  document.getElementById('rowCount').textContent = '0';
-  document.getElementById('exportTranscriptBtn').disabled = true;
-  document.getElementById('extractBtn').disabled = true;
+  setRowCount('0');
+  const etb3=document.getElementById('exportTranscriptBtn'); if(etb3) etb3.disabled=true;
+  const exb3=document.getElementById('extractBtn'); if(exb3) exb3.disabled=true;
   autoSave();
 }
 
@@ -1550,10 +1555,10 @@ function autoRestore() {
     if (Array.isArray(state.txRows) && state.txRows.length) {
       txRows = state.txRows;
       renderTxBox();
-      document.getElementById('rowCount').textContent = txRows.length;
-      document.getElementById('exportTranscriptBtn').disabled = false;
-      document.getElementById('extractBtn').disabled = false;
-      document.getElementById('rowCount').textContent = txRows.length;
+      setRowCount(txRows.length);
+      const etb=document.getElementById('exportTranscriptBtn'); if(etb) etb.disabled=false;
+      const exb=document.getElementById('extractBtn'); if(exb) exb.disabled=false;
+      setRowCount(txRows.length);
     }
 
     // Restore draft rows (AI extracted but not yet kept)
