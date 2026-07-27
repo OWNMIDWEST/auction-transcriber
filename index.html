@@ -610,8 +610,9 @@ async function transcribeFile() {
     clearTimeout(addTxRow._saveTimer);
     autoSave();
   } catch(err) {
-    showAlert('alertBoxFile','Error: '+err.message);
-    setStat('','Error — try again');
+    console.error('[transcribeFile error]', err);
+    showAlert('alertBoxFile', 'Error: ' + err.message);
+    setStat('', 'Error — try again');
   }
   document.getElementById('transcribeBtn').disabled=false;
   document.getElementById('transcribeBtn').textContent='⚡ Transcribe File';
@@ -1341,6 +1342,7 @@ document.getElementById('auctionDate').valueAsDate = new Date();
 // Format: "Label — Name · Date · Location · Auctioneer"
 // ══════════════════════════════════════════════════════
 function sectionHeader(label, meta, actionsHTML='') {
+  if (!meta) meta = {name:'Unnamed Auction', date:'', location:'', auctioneer:''};
   const parts = [esc(meta.name||'Unnamed Auction')];
   if (meta.date)       parts.push(meta.date);
   if (meta.location)   parts.push(esc(meta.location));
@@ -1353,11 +1355,12 @@ function sectionHeader(label, meta, actionsHTML='') {
 }
 
 function getFormMeta() {
+  const g = id => { const el = document.getElementById(id); return el ? el.value : ''; };
   return {
-    name:       document.getElementById('auctionName').value     || 'Unnamed Auction',
-    date:       document.getElementById('auctionDate').value     || '',
-    location:   document.getElementById('auctionLocation').value || '',
-    auctioneer: document.getElementById('auctioneer').value      || '',
+    name:       g('auctionName')     || 'Unnamed Auction',
+    date:       g('auctionDate')     || '',
+    location:   g('auctionLocation') || '',
+    auctioneer: g('auctioneer')      || '',
     id:         Date.now()
   };
 }
@@ -1366,6 +1369,7 @@ function getFormMeta() {
 // NEW AUCTION — snapshot meta, start fresh session block
 // ══════════════════════════════════════════════════════
 function newAuction() {
+  try {
   const meta = getFormMeta();
 
   // Hide placeholder
@@ -1399,6 +1403,10 @@ function newAuction() {
   const etb3=document.getElementById('exportTranscriptBtn'); if(etb3) etb3.disabled=true;
   setStat('done', `Ready — recording for "${meta.name}"`);
   autoSave();
+  } catch(err) {
+    console.error('[newAuction error]', err);
+    showAlert('alertBox', 'Error starting auction: ' + err.message);
+  }
 }
 
 function clearTranscript() {
