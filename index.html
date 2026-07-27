@@ -698,8 +698,14 @@ Include uncertain sales with confidence "low" rather than skipping them. Return 
     autoSave();
   } catch(err) {
     document.getElementById('extractBar').classList.remove('show');
-    showAlert('alertBox','Extraction error: '+err.message);
-    setStat('','Extraction failed');
+    // Show error in a visible overlay since alertBox may be hidden
+    const errDiv = document.createElement('div');
+    errDiv.style.cssText = 'position:fixed;top:1rem;left:50%;transform:translateX(-50%);background:#e05555;color:#fff;padding:.75rem 1.25rem;border-radius:8px;font-size:.82rem;font-family:monospace;z-index:9999;max-width:80vw;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.5)';
+    errDiv.textContent = 'Extraction error: ' + err.message;
+    document.body.appendChild(errDiv);
+    setTimeout(()=>errDiv.remove(), 10000);
+    setStat('','Extraction failed - see error message');
+    console.error('[extraction error]', err);
   }
   const eb2=document.getElementById('extractBtn'); if(eb2) eb2.disabled=false;
 }
