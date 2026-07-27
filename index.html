@@ -826,7 +826,8 @@ function deleteDraftBlock(metaId){draftRows=[];const b=document.getElementById('
 // KEEP → CONFIRMED SALES TAB
 // ═══════════════════════════════════════════════════════════════════
 function keepSales() {
-  if (!draftRows.length) return;
+  try {
+  if (!draftRows.length) { alert('No sales to keep — extract first.'); return; }
   const blockId = blockCtr++;
   const meta = activeMeta || getFormMeta();
   const rows = draftRows.map(r=>({...r,id:idCtr++}));
@@ -838,11 +839,17 @@ function keepSales() {
   // Remove draft block from stream
   if (activeMeta) { const db=document.getElementById('draftblock-'+activeMeta.id); if(db) db.remove(); }
   const kc=document.getElementById('keepConfirm');
-  document.getElementById('keepConfirmText').textContent=`${count} sale${count!==1?'s':''} confirmed and added to Sales Data.`;
-  kc.classList.add('show');
-  setTimeout(()=>kc.classList.remove('show'),5000);
+  const kct=document.getElementById('keepConfirmText');
+  if(kct) kct.textContent=`${count} sale${count!==1?'s':''} confirmed and added to Sales Data.`;
+  if(kc) { kc.classList.add('show'); setTimeout(()=>kc.classList.remove('show'),5000); }
   setStat('done',`${count} sale${count!==1?'s':''} confirmed`);
+  // Switch to sales tab so user can see the result
+  showTab('sales');
   autoSave();
+  } catch(err) {
+    console.error('[keepSales error]',err);
+    alert('Keep failed: '+err.message);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -859,7 +866,7 @@ function renderAuctionBlock(blockId) {
   const fmt=n=>n!=null?'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'-';
   const tbody=rows.map(r=>`<tr data-id="${r.id}">
     <td><input class="ci lot" value="${ea(r.lotId)}" placeholder="Lot ID" onchange="updBlock(${blockId},${r.id},'lotId',this.value)"/></td>
-    <td><input class="ci bid" value="${ea(r.winningBid)}" placeholder="0.00" onchange="updBlock(${blockId},${r.id},'winningBid',this.value)" oninput="renderAuctionBlock(${blockId})"/></td>
+    <td><input class="ci bid" value="${ea(r.winningBid)}" placeholder="0.00" onchange="updBlock(${blockId},${r.id},'winningBid',this.value)"/></td>
     <td><input class="ci min" value="${ea(r.minBid||'')}" placeholder="0.00" onchange="updBlock(${blockId},${r.id},'minBid',this.value)"/></td>
     <td><input class="ci bidder" value="${ea(r.bidderNum)}" placeholder="Bidder#" onchange="updBlock(${blockId},${r.id},'bidderNum',this.value)"/></td>
     <td><input class="ci ts" value="${ea(r.timestamp)}" placeholder="00:00" onchange="updBlock(${blockId},${r.id},'timestamp',this.value)"/></td>
