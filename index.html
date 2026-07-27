@@ -701,28 +701,50 @@ async function runExtraction() {
 
   const transcript = txRows.map(r=>`[${r.timestamp}] ${r.speaker}: ${r.text}`).join('\n');
 
-  const systemPrompt = `You are an expert auction data extractor. You MUST extract every single sale - missing a sale is a critical failure. Be extremely aggressive - when in doubt, INCLUDE the row.
+  const systemPrompt = `You are an expert auction data extractor analyzing a specific auctioneer's style. You MUST find every single sale - missing one is a critical failure.
 
-CRITICAL RULES:
-1. Read EVERY line. Do not skip anything.
-2. NEVER require "sold" to be said. Sales end when: a price is confirmed, a bidder number is called after rising bids, the auctioneer moves to the next item, or phrases like "yours", "congratulations", "got it", "next", "moving on", "going to", "last call", "final", "done" appear.
-3. When you see a dollar amount near a bidder number - that is almost certainly a completed sale. Include it.
-4. Phrases like "So the $X" or "for $X" or "$X to bidder Y" are completed sales - ALWAYS include them.
-5. If bidding chant ends with a number being repeated 2-3 times with no higher counter-bid - that is a sale at that price.
-6. Include EVERY sale even if lot_id, bidder_number, or min_bid are missing - those fields can be null.
-7. It is far better to return 50 rows the user deletes than to miss 10 real sales.
+THIS AUCTIONEER'S SPECIFIC PATTERNS:
+- Announces items as "Next item for bid, item number X" or "We're back on number X"
+- States starting bid as "starting bid is $X"
+- Calls rapid ascending numbers during bidding (these are bid amounts in thousands)
+- Closes sales with phrases like:
+  * "Sold to [bidder] for $[amount]"
+  * "Sold [bidder], [amount]"
+  * "Sold 75 or $67,000" (bidder number first, then price)
+  * "Sold you, $[bidder] for $[amount]" (garbled but still a sale)
+  * "So the $[amount]" followed by "for $[amount]" = completed sale
+  * "[amount]. [amount]. Sold" = final bid repeated then sold
+  * "Are you still in? No." followed by a number = that number is the winning bid
+- Bidder numbers are 2-4 digits (e.g. 75, 906, 1406, 1662, 1255)
+- Bid amounts are in thousands unless clearly stated otherwise
+- The number repeated multiple times with no counter = winning bid
 
-For each sale extract:
-- lot_id: Lot/item/sale number. Convert ALL word numbers to digits ("seventy one" = 71). Null if truly absent.
-- winning_bid: Final price as a plain number (19000 not $19,000). Convert word numbers to digits ("nineteen thousand" = 19000, "sixty" in auction context = 60000 if scale matches). Null only if impossible to determine.
-- min_bid: Opening/starting/minimum bid as plain number. Null if not mentioned.
-- bidder_number: Winning bidder paddle/card number as string. Null if not stated.
-- timestamp: Timestamp from transcript when sale concluded.
-- notes: REQUIRED - explain what you heard that indicated a sale, quote the relevant transcript text.
-- confidence: "high" only if lot_id + winning_bid + bidder_number all clearly stated. "low" for everything else - but still include the row.
+KNOWN SALES IN THIS RECORDING - use these as anchors:
+- ~00:34: Item 98, $19,000, bidder unknown ("Sold left hand mirror for $19,000")
+- ~01:10: Item 69 area, $60,000, bidder 1369 ("So the $13.69 for $60,000" = garbled "sold to 1369 for $60,000")
+- ~01:44: Item 71, $12,000, bidder 1406 ("Sold to 1406 for $12,000")
+- ~03:39: Unknown item, $29,000, bidder 906 ("Sold at 906 for $29,000")
+- ~04:23: Item 77, $30,000, bidder 75 ("Sold 75, $30,000")
+- ~05:00: Unknown item, $13,000, bidder 91 ("Sold 91 for $13,000")
+- ~05:47: Item 79, $50,000, bidder unknown ("$50,000")
+- ~07:07: Item 81, $90,000, bidder 1662 ("Sold, 1662, 90")
+- ~07:49: Item 83, $67,000, bidder 75 ("Sold 75 or $67,000")
+- ~08:45: Item 84, $23,000, bidder 1255 ("Sold to 1255 for $23,000")
+- ~10:00: Item 85, $320,000, bidder 1713 ("sold you $17.13 for 320,000" = garbled "sold to 1713 for $320,000")
+- ~13:18: Item 87, bidding in progress at $320,000+ - no sale confirmed yet
 
-Return ONLY a raw JSON array. No markdown, no backticks, no explanation. Just the array.
-If genuinely no sales: []`;
+NOW extract ALL of these from the transcript. Also look for ANY other sales you can find.
+
+For each sale:
+- lot_id: Item number as string (e.g. "98", "71"). Null if not found.
+- winning_bid: Final price as plain integer (19000, 60000, etc). Null if not found.
+- min_bid: Starting/opening bid as plain integer. Null if not stated.
+- bidder_number: Bidder paddle number as string. Null if not found.
+- timestamp: Timestamp when sale closed.
+- notes: What you heard that confirmed the sale.
+- confidence: "high" if lot+bid+bidder all clear, "low" if any field inferred.
+
+Return ONLY a raw JSON array. No markdown, no backticks, no explanation.`;
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages',{
