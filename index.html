@@ -414,7 +414,7 @@ function sectionHeader(label, meta, actionsHTML='') {
   if (meta.location) parts.push(esc(meta.location));
   if (meta.auctioneer) parts.push('Auctioneer: '+esc(meta.auctioneer));
   return `<div class="session-header">
-    <div class="session-header-title"><strong style="color:var(--accent)">${label}</strong> — ${parts.join(' · ')}</div>
+    <div class="session-header-title"><strong style="color:var(--accent)">${label}</strong> - ${parts.join(' · ')}</div>
     <div class="session-header-actions">${actionsHTML}</div>
   </div>`;
 }
@@ -450,7 +450,7 @@ function newAuction() {
 
   // Reset controls
   setRowCount(0);
-  setStat('done', `Ready — "${meta.name}"`);
+  setStat('done', `Ready - "${meta.name}"`);
   const eb = document.getElementById('extractBtn'); if(eb) eb.disabled=true;
   const tb = document.getElementById('exportTxBtn'); if(tb) tb.disabled=true;
   autoSave();
@@ -462,7 +462,7 @@ function newAuction() {
 function buildDgURL(proto) {
   const params = new URLSearchParams({ model:'nova-2', language:'en-US', smart_format:'true', diarize:'true', punctuate:'true', utterances:'true', filler_words:'false' });
   const raw = (document.getElementById('keyterms')?.value||'').trim();
-  if (raw) raw.split(',').map(k=>k.trim()).filter(Boolean).forEach(k=>params.append('keyterm',k));
+  if (raw) raw.split(',').map(k=>k.trim()).filter(Boolean).forEach(k=>params.append('keywords',encodeURIComponent(k)+':1'));
   return `${proto==='wss'?'wss':'https'}://api.deepgram.com/v1/listen?${params}`;
 }
 
@@ -492,7 +492,7 @@ async function startLive() {
         addTxRow(words[0]?.start??0, `Speaker ${(words[0]?.speaker??0)+1}`, alt.transcript.trim());
       }
     };
-    wsocket.onerror = () => showAlert('alertBox','WebSocket error — check your Deepgram API key.');
+    wsocket.onerror = () => showAlert('alertBox','WebSocket error - check your Deepgram API key.');
     wsocket.onclose = () => { if(isRec) stopLive(); };
   } catch(err) { showAlert('alertBox','Mic access denied: '+err.message); }
 }
@@ -502,7 +502,7 @@ function stopLive() {
   mediaRecorder?.stop();
   mediaRecorder?.stream?.getTracks().forEach(t=>t.stop());
   wsocket?.close();
-  setStat('done','Recording stopped — click Extract Sale Data');
+  setStat('done','Recording stopped - click Extract Sale Data');
   document.getElementById('startBtn').disabled=false;
   document.getElementById('stopBtn').disabled=true;
   if (txRows.length) { const eb=document.getElementById('extractBtn'); if(eb) eb.disabled=false; }
@@ -542,13 +542,13 @@ async function transcribeFile() {
     if (svc==='deepgram') await doDeepgram(key);
     else await doAssemblyAI(key);
     const n = txRows.length;
-    setStat('done', n>0?`Transcribed ${n} lines — click Extract Sale Data`:'No transcript returned — check file and API key');
+    setStat('done', n>0?`Transcribed ${n} lines - click Extract Sale Data`:'No transcript returned - check file and API key');
     if (txRows.length) { const eb=document.getElementById('extractBtn'); if(eb) eb.disabled=false; }
     clearTimeout(addTxRow._t);
     autoSave();
   } catch(err) {
     showAlert('alertBoxFile','Error: '+err.message);
-    setStat('','Error — try again');
+    setStat('','Error - try again');
   }
   document.getElementById('transcribeBtn').disabled=false;
   document.getElementById('transcribeBtn').textContent='⚡ Transcribe File';
@@ -650,7 +650,7 @@ async function runExtraction() {
 
   const transcript = txRows.map(r=>`[${r.timestamp}] ${r.speaker}: ${r.text}`).join('\n');
 
-  const systemPrompt = `You are an expert auction data extractor. Your job is critically important. Read every single line of the transcript carefully and identify every completed or likely completed sale. Do NOT require the word "sold" — infer sales from context, bidder numbers called, price confirmations, or the auctioneer moving to the next item.
+  const systemPrompt = `You are an expert auction data extractor. Your job is critically important. Read every single line of the transcript carefully and identify every completed or likely completed sale. Do NOT require the word "sold" - infer sales from context, bidder numbers called, price confirmations, or the auctioneer moving to the next item.
 
 For each sale extract:
 - lot_id: Lot/item/sale number. Convert word numbers to digits. Null if absent.
@@ -694,7 +694,7 @@ Include uncertain sales with confidence "low" rather than skipping them. Return 
     renderDraftTable();
     document.getElementById('extractBar').classList.remove('show');
     draftBlock.scrollIntoView({behavior:'smooth',block:'start'});
-    setStat('done',`${extracted.length} sale${extracted.length!==1?'s':''} found — review then click Keep`);
+    setStat('done',`${extracted.length} sale${extracted.length!==1?'s':''} found - review then click Keep`);
     autoSave();
   } catch(err) {
     document.getElementById('extractBar').classList.remove('show');
@@ -767,7 +767,7 @@ function renderAuctionBlock(blockId) {
   if (!wrap) { wrap=document.createElement('div');wrap.id='block-'+blockId;wrap.className='session-block';wrap.style.marginBottom='.9rem';document.getElementById('auctionBlocksWrap').appendChild(wrap); }
   const m=block.meta,rows=block.rows;
   const bids=rows.map(r=>parseFloat(r.winningBid)||0),total=bids.reduce((a,b)=>a+b,0),valid=bids.filter(b=>b>0),high=valid.length?Math.max(...valid):null,low=valid.length?Math.min(...valid):null;
-  const fmt=n=>n!=null?'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+  const fmt=n=>n!=null?'$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}):'-';
   const tbody=rows.map(r=>`<tr data-id="${r.id}">
     <td><input class="ci lot" value="${ea(r.lotId)}" placeholder="Lot ID" onchange="updBlock(${blockId},${r.id},'lotId',this.value)"/></td>
     <td><input class="ci bid" value="${ea(r.winningBid)}" placeholder="0.00" onchange="updBlock(${blockId},${r.id},'winningBid',this.value)" oninput="renderAuctionBlock(${blockId})"/></td>
@@ -804,7 +804,7 @@ function exportBlockExcel(bid) {
   const {name,date,location,auctioneer}=block.meta,rows=block.rows;
   const bids=rows.map(r=>parseFloat(r.winningBid)||0),total=bids.reduce((a,b)=>a+b,0),valid=bids.filter(b=>b>0);
   const wb=XLSX.utils.book_new();
-  const ws1=XLSX.utils.aoa_to_sheet([['AUCTION SALE RESULTS','','','',''],['Auction Name:',name,'','Date:',date],['Location:',location,'','Auctioneer:',auctioneer],['Total Sales:',rows.length,'','Total Proceeds:','$'+total.toFixed(2)],['High Bid:',valid.length?'$'+Math.max(...valid).toFixed(2):'—','','Low Bid:',valid.length?'$'+Math.min(...valid).toFixed(2):'—'],['','','','',''],['Lot/Sale ID','Winning Bid($)','Min Bid($)','Bidder#','Timestamp','Notes'],...rows.map(r=>[r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.minBid?parseFloat(r.minBid):'',r.bidderNum,r.timestamp,r.notes]),['','','','','',''],['TOTAL PROCEEDS','$'+total.toFixed(2),'','','','']]);
+  const ws1=XLSX.utils.aoa_to_sheet([['AUCTION SALE RESULTS','','','',''],['Auction Name:',name,'','Date:',date],['Location:',location,'','Auctioneer:',auctioneer],['Total Sales:',rows.length,'','Total Proceeds:','$'+total.toFixed(2)],['High Bid:',valid.length?'$'+Math.max(...valid).toFixed(2):'-','','Low Bid:',valid.length?'$'+Math.min(...valid).toFixed(2):'-'],['','','','',''],['Lot/Sale ID','Winning Bid($)','Min Bid($)','Bidder#','Timestamp','Notes'],...rows.map(r=>[r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.minBid?parseFloat(r.minBid):'',r.bidderNum,r.timestamp,r.notes]),['','','','','',''],['TOTAL PROCEEDS','$'+total.toFixed(2),'','','','']]);
   ws1['!cols']=[{wch:18},{wch:16},{wch:12},{wch:14},{wch:12},{wch:30}];
   XLSX.utils.book_append_sheet(wb,ws1,'Sale Results');
   if(txRows.length){const ws2=XLSX.utils.aoa_to_sheet([['TRANSCRIPT','',''],['Auction:',name,''],['','',''],['Timestamp','Speaker','Transcript'],...txRows.map(r=>[r.timestamp,r.speaker,r.text])]);ws2['!cols']=[{wch:12},{wch:14},{wch:90}];XLSX.utils.book_append_sheet(wb,ws2,'Transcript');}
@@ -834,7 +834,7 @@ function exportAllExcel() {
   const allRows=[['ALL SALES','','','','','','',''],['','','','','','','',''],['Auction','Date','Lot/Sale ID','Winning Bid($)','Min Bid($)','Bidder#','Timestamp','Notes']];
   auctionBlocks.forEach(b=>b.rows.forEach(r=>allRows.push([b.meta.name,b.meta.date,r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.minBid?parseFloat(r.minBid):'',r.bidderNum,r.timestamp,r.notes])));
   const wsa=XLSX.utils.aoa_to_sheet(allRows);wsa['!cols']=[{wch:22},{wch:14},{wch:16},{wch:14},{wch:12},{wch:12},{wch:12},{wch:28}];XLSX.utils.book_append_sheet(wb,wsa,'All Sales');
-  auctionBlocks.forEach((b,i)=>{const {name,date,location,auctioneer}=b.meta,rows=b.rows,bids=rows.map(r=>parseFloat(r.winningBid)||0),total=bids.reduce((a,c)=>a+c,0),valid=bids.filter(c=>c>0);const sn=(name||'Auction').replace(/[^a-zA-Z0-9 _-]/g,'').slice(0,27)+(auctionBlocks.length>1?' '+(i+1):'');const wsi=XLSX.utils.aoa_to_sheet([['AUCTION SALE RESULTS','','','',''],['Auction Name:',name,'','Date:',date],['Location:',location,'','Auctioneer:',auctioneer],['Total Sales:',rows.length,'','Total Proceeds:','$'+total.toFixed(2)],['High Bid:',valid.length?'$'+Math.max(...valid).toFixed(2):'—','','Low Bid:',valid.length?'$'+Math.min(...valid).toFixed(2):'—'],['','','','',''],['Lot/Sale ID','Winning Bid($)','Min Bid($)','Bidder#','Timestamp','Notes'],...rows.map(r=>[r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.minBid?parseFloat(r.minBid):'',r.bidderNum,r.timestamp,r.notes]),['','','','','',''],['TOTAL','$'+total.toFixed(2),'','','','']]);wsi['!cols']=[{wch:18},{wch:16},{wch:12},{wch:12},{wch:12},{wch:28}];XLSX.utils.book_append_sheet(wb,wsi,sn);});
+  auctionBlocks.forEach((b,i)=>{const {name,date,location,auctioneer}=b.meta,rows=b.rows,bids=rows.map(r=>parseFloat(r.winningBid)||0),total=bids.reduce((a,c)=>a+c,0),valid=bids.filter(c=>c>0);const sn=(name||'Auction').replace(/[^a-zA-Z0-9 _-]/g,'').slice(0,27)+(auctionBlocks.length>1?' '+(i+1):'');const wsi=XLSX.utils.aoa_to_sheet([['AUCTION SALE RESULTS','','','',''],['Auction Name:',name,'','Date:',date],['Location:',location,'','Auctioneer:',auctioneer],['Total Sales:',rows.length,'','Total Proceeds:','$'+total.toFixed(2)],['High Bid:',valid.length?'$'+Math.max(...valid).toFixed(2):'-','','Low Bid:',valid.length?'$'+Math.min(...valid).toFixed(2):'-'],['','','','',''],['Lot/Sale ID','Winning Bid($)','Min Bid($)','Bidder#','Timestamp','Notes'],...rows.map(r=>[r.lotId,r.winningBid?parseFloat(r.winningBid):'',r.minBid?parseFloat(r.minBid):'',r.bidderNum,r.timestamp,r.notes]),['','','','','',''],['TOTAL','$'+total.toFixed(2),'','','','']]);wsi['!cols']=[{wch:18},{wch:16},{wch:12},{wch:12},{wch:12},{wch:28}];XLSX.utils.book_append_sheet(wb,wsi,sn);});
   if(txRows.length){const wt=XLSX.utils.aoa_to_sheet([['TRANSCRIPT','',''],['','',''],['Timestamp','Speaker','Transcript'],...txRows.map(r=>[r.timestamp,r.speaker,r.text])]);wt['!cols']=[{wch:12},{wch:14},{wch:90}];XLSX.utils.book_append_sheet(wb,wt,'Transcript');}
   XLSX.writeFile(wb,`auctionscribe_all_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
@@ -891,8 +891,11 @@ window.addEventListener('beforeunload',()=>{clearTimeout(addTxRow._t);try{autoSa
 
 function autoRestore() {
   try {
-    const raw=localStorage.getItem(AS_KEY);if(!raw)return;
-    const s=JSON.parse(raw);if(!s)return;
+    const raw=localStorage.getItem(AS_KEY);
+    if(!raw) { console.log('[restore] no saved data'); return; }
+    const s=JSON.parse(raw);
+    if(!s) { console.log('[restore] invalid JSON'); return; }
+    console.log('[restore] starting restore, blocks:', (s.auctionBlocks||[]).length, 'txRows:', (s.txRows||[]).length);
     if(s.idCtr)idCtr=s.idCtr;
     if(s.blockCtr)blockCtr=s.blockCtr;
     if(Array.isArray(s.auctionBlocks)&&s.auctionBlocks.length){auctionBlocks=s.auctionBlocks;auctionBlocks.forEach(b=>renderAuctionBlock(b.blockId));updateTabBadge();}
@@ -945,7 +948,7 @@ function clearAll() {
   const eb=document.getElementById('extractBtn');if(eb)eb.disabled=true;
   const tb=document.getElementById('exportTxBtn');if(tb)tb.disabled=true;
   updateTabBadge();
-  setStat('','Ready — fill in details and click New Auction');
+  setStat('','Ready - fill in details and click New Auction');
   localStorage.removeItem(AS_KEY);
 }
 
@@ -964,7 +967,7 @@ function ea(s){return String(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 // ═══════════════════════════════════════════════════════════════════
 document.getElementById('auctionDate').valueAsDate = new Date();
 
-// Global error handler — shows JS errors visibly on screen
+// Global error handler - shows JS errors visibly on screen
 window.onerror = function(msg, src, line, col, err) {
   const d = document.createElement('div');
   d.style.cssText = 'position:fixed;bottom:1rem;left:1rem;right:1rem;background:#e05555;color:#fff;padding:.75rem 1rem;border-radius:8px;font-size:.78rem;font-family:monospace;z-index:9999;';
@@ -997,6 +1000,7 @@ try { autoRestore(); } catch(e) { console.error('autoRestore failed:', e); local
   const el=document.getElementById(id);
   if(el){el.addEventListener('input',autoSave);el.addEventListener('change',autoSave);}
 });
+console.log('[AuctionScribe] init complete - all functions loaded');
 </script>
 </body>
 </html>
