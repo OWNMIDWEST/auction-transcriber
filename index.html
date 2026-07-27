@@ -460,7 +460,10 @@ function newAuction() {
 // LIVE RECORDING
 // ═══════════════════════════════════════════════════════════════════
 function buildDgURL(proto) {
-  const params = new URLSearchParams({ model:'nova-2', language:'en-US', smart_format:'true', diarize:'true', punctuate:'true', utterances:'true', filler_words:'false' });
+  // For large files, use paragraphs instead of utterances - more reliable on long audio
+  const fileMB = selFile ? selFile.size/1024/1024 : 0;
+  const useParagraphs = fileMB > 50;
+  const params = new URLSearchParams({ model:'nova-2', language:'en-US', smart_format:'true', diarize:'true', punctuate:'true', utterances:'true', filler_words:'false', ...(useParagraphs ? {paragraphs:'true'} : {}) });
   const raw = (document.getElementById('keyterms')?.value||'').trim();
   if (raw) raw.split(',').map(k=>k.trim()).filter(Boolean).forEach(k=>params.append('keywords',encodeURIComponent(k)+':1'));
   return `${proto==='wss'?'wss':'https'}://api.deepgram.com/v1/listen?${params}`;
@@ -515,7 +518,15 @@ function stopLive() {
 // ═══════════════════════════════════════════════════════════════════
 function handleFile(inp) {
   selFile = inp.files[0];
-  if (selFile) { document.getElementById('fileName').textContent=selFile.name; document.getElementById('transcribeBtn').disabled=false; }
+  if (!selFile) return;
+  const mb = selFile.size / 1024 / 1024;
+  const name = selFile.name;
+  document.getElementById('fileName').textContent = name + ' (' + mb.toFixed(1) + ' MB)';
+  document.getElementById('transcribeBtn').disabled = false;
+  // Warn if file is very large
+  if (mb > 150) {
+    showAlert('alertBoxFile', `Large file (${mb.toFixed(0)}MB) — transcription may take several minutes. For best results with large M4A files, AssemblyAI handles long files more reliably than Deepgram.`);
+  }
 }
 
 // Drag/drop
@@ -536,6 +547,11 @@ async function transcribeFile() {
   const key = document.getElementById('apiKey').value.trim();
   if (!key) return showAlert('alertBoxFile','Enter your API key first.');
   if (!selFile) return showAlert('alertBoxFile','Select an audio file first.');
+  // Clear existing transcript before starting fresh transcription
+  txRows = [];
+  const box = document.getElementById('transcriptBox');
+  if (box) box.innerHTML = '<div class="placeholder-msg">Transcribing...</div>';
+  setRowCount(0);
   document.getElementById('transcribeBtn').disabled=true;
   document.getElementById('transcribeBtn').textContent='⏳ Processing…';
   try {
